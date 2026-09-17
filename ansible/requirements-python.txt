@@ -1,0 +1,3 @@
+ansible-core==2.21.4 
+pan-os-python==1.13.1 
+xmltodict==1.0.4

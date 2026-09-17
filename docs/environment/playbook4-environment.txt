@@ -1,0 +1,62 @@
+Firewall IaC Lab Environment Snapshot
+Generated: ceturtdiena, 2026. gada 17. septembris, 23:15:23 EEST
+
+=== Python ===
+Python 3.12.14
+
+=== Ansible ===
+ansible [core 2.21.4]
+  config file = /home/user/firewall-iac-lab/ansible.cfg
+  configured module search path = ['/home/user/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']
+  ansible python module location = /home/user/firewall-iac-lab/.venv/lib/python3.12/site-packages/ansible
+  ansible collection location = /home/user/.ansible/collections:/usr/share/ansible/collections
+  executable location = /home/user/firewall-iac-lab/.venv/bin/ansible
+  python version = 3.12.14 (main, Sep 17 2026, 21:47:03) [GCC 11.4.0] (/home/user/firewall-iac-lab/.venv/bin/python)
+  jinja version = 3.1.6
+  pyyaml version = 6.0.3 (with libyaml v0.2.5)
+
+=== Collections ===
+
+# /home/user/.ansible/collections/ansible_collections
+Collection       Version
+---------------- -------
+fortinet.fortios 2.6.0  
+
+# /home/user/.ansible/collections/ansible_collections
+Collection             Version
+---------------------- -------
+paloaltonetworks.panos 3.4.1  
+
+=== PAN-OS Python Dependencies ===
+Name: pan-os-python
+Version: 1.13.1
+Summary: Framework for interacting with Palo Alto Networks devices via API
+Home-page: https://github.com/PaloAltoNetworks/pan-os-python
+Author: Palo Alto Networks
+Author-email: devrel@paloaltonetworks.com
+License: ISC
+Location: /home/user/firewall-iac-lab/.venv/lib/python3.12/site-packages
+Requires: pan-python
+Required-by: 
+---
+Name: pan-python
+Version: 0.17.0
+Summary: Multi-tool set for Palo Alto Networks PAN-OS, Panorama, WildFire and AutoFocus
+Home-page: https://github.com/kevinsteves/pan-python
+Author: Kevin Steves
+Author-email: kevin.steves@pobox.com
+License: UNKNOWN
+Location: /home/user/firewall-iac-lab/.venv/lib/python3.12/site-packages
+Requires: 
+Required-by: pan-os-python
+---
+Name: xmltodict
+Version: 1.0.4
+Summary: Makes working with XML feel like you are working with JSON
+Home-page: https://github.com/martinblech/xmltodict
+Author: Martin Blech
+Author-email: 
+License-Expression: MIT
+Location: /home/user/firewall-iac-lab/.venv/lib/python3.12/site-packages
+Requires: 
+Required-by: 

@@ -1,0 +1,7 @@
+collections:
+
+  - name: fortinet.fortios
+    version: "==2.6.0"
+
+  - name: paloaltonetworks.panos
+    version: "==3.4.1"
