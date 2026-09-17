@@ -1,0 +1,15 @@
+# ============================================================
+# Palo Alto Group Variables
+# ============================================================
+
+ansible_connection: local
+
+firewall_vendor: paloaltonetworks
+firewall_platform: panos
+
+panos_api_protocol: https
+panos_api_port: 443
+panos_validate_certs: false
+
+panos_vsys: vsys1
+

@@ -1,0 +1,44 @@
+---
+# ============================================================
+# Shared Enterprise Lab Variables
+# ============================================================
+
+lab_name: firewall_iac_lab
+lab_environment: lab
+lab_platform: eve_ng
+
+# ------------------------------------------------------------
+# Management Network
+# ------------------------------------------------------------
+
+management_network: 192.168.100.0/24
+
+# ------------------------------------------------------------
+# Shared Infrastructure
+# ------------------------------------------------------------
+
+iac_controller_name: Linux12
+iac_controller_ip: 192.168.100.10
+
+jump_host_name: Windows_Jump_Host
+jump_host_ip: 192.168.100.20
+
+syslog_server_name: Linux13
+syslog_server_ip: 192.168.100.30
+
+identity_server_name: Linux14
+identity_server_ip: 192.168.100.40
+identity_server_status: planned
+
+# ------------------------------------------------------------
+# Reserved Address Space
+# ------------------------------------------------------------
+
+reserved_wan_dhcp_network: 10.0.0.0/8
+
+# ------------------------------------------------------------
+# Common Management Defaults
+# ------------------------------------------------------------
+
+default_api_protocol: https
+default_api_port: 443

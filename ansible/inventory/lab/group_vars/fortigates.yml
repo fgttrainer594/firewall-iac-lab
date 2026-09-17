@@ -1,0 +1,16 @@
+---
+# ============================================================
+# FortiGate Group Variables
+# ============================================================
+
+ansible_connection: httpapi
+ansible_network_os: fortinet.fortios.fortios
+
+ansible_httpapi_use_ssl: false
+ansible_httpapi_validate_certs: false
+ansible_httpapi_port: 80
+
+firewall_vendor: fortinet
+firewall_platform: fortios
+
+fortigate_vdom: root
