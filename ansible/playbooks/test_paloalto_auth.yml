@@ -1,0 +1,21 @@
+---
+- name: Test Paloalto API Auth
+  hosts: paloaltos
+  gather_facts: false
+  connection: local
+
+  tasks:
+   - name: Auth and retrive PAloalto system facts
+     paloaltonetworks.panos.panos_facts:
+        provider: "{{panos_provider}}"
+        gather_subset:
+                - system
+     register: panos_auth_result
+     changed_when: false
+     no_log: false
+
+   - name: Report successful paloalto auth
+     ansible.builtin.debug:
+           msg: >-
+             {{inventory_hostname}} authentication PASS
+

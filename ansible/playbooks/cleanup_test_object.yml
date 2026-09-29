@@ -1,0 +1,79 @@
+---
+- name: Remove FortiGate Playbook 7 test object
+  hosts: "{{ fortigate_target | default('fgt1') }}"
+  gather_facts: false
+  serial: 1
+  vars:
+    lab_address_name: "IAC-PB7-TEST-HOST"
+  tasks:
+    - name: Ensure FortiGate test address object is absent
+      fortinet.fortios.fortios_firewall_address:
+        vdom: "{{ fortigate_vdom }}"
+        state: absent
+        access_token: "{{ fortigate_deploy_access_token }}"
+        firewall_address:
+          name: "{{ lab_address_name }}"
+      register: fgt_remove
+      no_log: true
+    - name: Verify FortiGate test object is absent
+      fortinet.fortios.fortios_configuration_fact:
+        vdom: "{{ fortigate_vdom }}"
+        access_token: "{{ fortigate_deploy_access_token }}"
+        selector: firewall_address
+        params:
+          name: "{{ lab_address_name }}"
+      register: fgt_verify_absent
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+    - name: Assert FortiGate test object is absent
+      ansible.builtin.assert:
+        that:
+          - fgt_verify_absent.results | default([]) | length == 0
+        success_msg: "{{ inventory_hostname }} cleanup verification PASS."
+      when: not ansible_check_mode
+
+- name: Remove PAN-OS Playbook 7 test object
+  hosts: "{{ panos_target | default('pa6') }}"
+  gather_facts: false
+  connection: local
+  serial: 1
+  vars:
+    lab_address_name: "IAC-PB7-TEST-HOST"
+  tasks:
+    - name: Ensure PAN-OS test address object is absent
+      paloaltonetworks.panos.panos_address_object:
+        provider: "{{ panos_deploy_provider }}"
+        name: "{{ lab_address_name }}"
+        vsys: "{{ panos_vsys }}"
+        state: absent
+      register: panos_remove
+      no_log: true
+    - name: Commit only IaC deploy administrator removal changes
+      paloaltonetworks.panos.panos_commit_firewall:
+        provider: "{{ panos_deploy_provider }}"
+        admins:
+          - "{{ panos_deploy_admin }}"
+        description: "Firewall IaC Lab Playbook 7 - remove test address object"
+        sync: true
+      no_log: true
+      when:
+        - panos_remove.changed
+        - not ansible_check_mode
+    - name: Verify PAN-OS test object is absent
+      paloaltonetworks.panos.panos_address_object:
+        provider: "{{ panos_deploy_provider }}"
+        state: gathered
+        gathered_filter: >-
+          name == '{{ lab_address_name }}'
+        vsys: "{{ panos_vsys }}"
+      register: panos_verify_absent
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+    - name: Assert PAN-OS test object is absent
+      ansible.builtin.assert:
+        that:
+          - panos_verify_absent.gathered | default([]) | length == 0
+        success_msg: "{{ inventory_hostname }} cleanup verification PASS."
+      when: not ansible_check_mode

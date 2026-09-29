@@ -1,0 +1,190 @@
+---
+- name: Pilot FortiGate address object deployment
+  hosts: "{{ fortigate_target | default('fgt1') }}"
+  gather_facts: false
+  serial: 1
+
+  vars:
+    lab_address_name: "IAC-PB7-TEST-HOST"
+    lab_test_ip: "198.51.100.10"
+    lab_test_mask: "255.255.255.255"
+    lab_fgt_subnet: "{{ lab_test_ip }} {{ lab_test_mask }}"
+    lab_description: "Managed by Firewall IaC Lab - Playbook 7"
+
+  pre_tasks:
+    - name: Confirm FortiGate deploy credential is defined
+      ansible.builtin.assert:
+        that:
+          - fortigate_deploy_access_token is defined
+          - fortigate_deploy_access_token | length > 0
+        fail_msg: >-
+          Deploy token is missing for {{ inventory_hostname }}.
+          Do not fall back to the read-only token.
+
+  tasks:
+    - name: Pre-check FortiGate test address object
+      fortinet.fortios.fortios_configuration_fact:
+        vdom: "{{ fortigate_vdom }}"
+        access_token: "{{ fortigate_deploy_access_token }}"
+        selector: firewall_address
+        params:
+          name: "{{ lab_address_name }}"
+      register: fgt_precheck
+      changed_when: false
+      no_log: true
+
+    - name: Report FortiGate pre-check
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} pre-check:
+          object_exists={{ (fgt_precheck.results | default([]) | length) > 0 }}
+
+    - name: Ensure FortiGate test address object is present
+      fortinet.fortios.fortios_firewall_address:
+        vdom: "{{ fortigate_vdom }}"
+        state: present
+        access_token: "{{ fortigate_deploy_access_token }}"
+        firewall_address:
+          name: "{{ lab_address_name }}"
+          type: ipmask
+          subnet: "{{ lab_fgt_subnet }}"
+          comment: "{{ lab_description }}"
+      register: fgt_change
+      no_log: true
+
+    - name: Report FortiGate change decision
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} configuration task changed={{ fgt_change.changed }}.
+          First compliant run should normally be true; an idempotent rerun should be false.
+
+    - name: Post-check FortiGate test address object
+      fortinet.fortios.fortios_configuration_fact:
+        vdom: "{{ fortigate_vdom }}"
+        access_token: "{{ fortigate_deploy_access_token }}"
+        selector: firewall_address
+        params:
+          name: "{{ lab_address_name }}"
+      register: fgt_postcheck
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Verify FortiGate object exists with expected identity and IP
+      ansible.builtin.assert:
+        that:
+          - fgt_postcheck.results | default([]) | length == 1
+          - fgt_postcheck.results[0].name == lab_address_name
+          - fgt_postcheck.results[0].type | default('') == 'ipmask'
+          - lab_test_ip in (fgt_postcheck.results[0].subnet | default('') | string)
+        fail_msg: >-
+          FortiGate post-check failed on {{ inventory_hostname }}.
+          The module result alone is not accepted as proof of deployment.
+        success_msg: >-
+          {{ inventory_hostname }} FortiGate address object verification PASS.
+      when: not ansible_check_mode
+
+- name: Pilot PAN-OS address object deployment
+  hosts: "{{ panos_target | default('pa6') }}"
+  gather_facts: false
+  connection: local
+  serial: 1
+
+  vars:
+    lab_address_name: "IAC-PB7-TEST-HOST"
+    lab_panos_value: "198.51.100.10/32"
+    lab_description: "Managed by Firewall IaC Lab - Playbook 7"
+
+  pre_tasks:
+    - name: Confirm PAN-OS deploy provider is defined
+      ansible.builtin.assert:
+        that:
+          - panos_deploy_provider is defined
+          - panos_deploy_provider.api_key is defined
+          - panos_deploy_provider.api_key | length > 0
+          - panos_deploy_admin is defined
+        fail_msg: >-
+          PAN-OS deploy credentials are missing for {{ inventory_hostname }}.
+          Do not fall back to the read-only provider.
+
+  tasks:
+    - name: Pre-check PAN-OS test address object
+      paloaltonetworks.panos.panos_address_object:
+        provider: "{{ panos_deploy_provider }}"
+        state: gathered
+        gathered_filter: >-
+          name == '{{ lab_address_name }}'
+        vsys: "{{ panos_vsys }}"
+      register: panos_precheck
+      changed_when: false
+      no_log: true
+
+    - name: Report PAN-OS pre-check
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} pre-check:
+          object_exists={{ (panos_precheck.gathered | default([]) | length) > 0 }}
+
+    - name: Ensure PAN-OS test address object is present
+      paloaltonetworks.panos.panos_address_object:
+        provider: "{{ panos_deploy_provider }}"
+        name: "{{ lab_address_name }}"
+        address_type: ip-netmask
+        value: "{{ lab_panos_value }}"
+        description: "{{ lab_description }}"
+        vsys: "{{ panos_vsys }}"
+        state: present
+      register: panos_change
+      no_log: true
+
+    - name: Report PAN-OS change decision
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} configuration task changed={{ panos_change.changed }}.
+          A commit is required only when the candidate configuration changed.
+
+    - name: Commit only changes made by the IaC deploy administrator
+      paloaltonetworks.panos.panos_commit_firewall:
+        provider: "{{ panos_deploy_provider }}"
+        admins:
+          - "{{ panos_deploy_admin }}"
+        description: "Firewall IaC Lab Playbook 7 - test address object"
+        sync: true
+      register: panos_commit_result
+      no_log: true
+      when:
+        - panos_change.changed
+        - not ansible_check_mode
+
+    - name: Report PAN-OS commit decision
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} commit_executed={{
+            panos_change.changed and not ansible_check_mode
+          }}.
+
+    - name: Post-check PAN-OS test address object
+      paloaltonetworks.panos.panos_address_object:
+        provider: "{{ panos_deploy_provider }}"
+        state: gathered
+        gathered_filter: >-
+          name == '{{ lab_address_name }}'
+        vsys: "{{ panos_vsys }}"
+      register: panos_postcheck
+      changed_when: false
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Verify PAN-OS object exists with expected value
+      ansible.builtin.assert:
+        that:
+          - panos_postcheck.gathered | default([]) | length == 1
+          - panos_postcheck.gathered[0].name == lab_address_name
+          - panos_postcheck.gathered[0].address_type | default('ip-netmask') == 'ip-netmask'
+          - panos_postcheck.gathered[0].value == lab_panos_value
+        fail_msg: >-
+          PAN-OS post-check failed on {{ inventory_hostname }}.
+          The object was not verified after commit.
+        success_msg: >-
+          {{ inventory_hostname }} PAN-OS address object verification PASS.
+      when: not ansible_check_mode

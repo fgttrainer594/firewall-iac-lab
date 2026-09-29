@@ -1,0 +1,19 @@
+---
+- name: Test FGT API Auth
+  hosts: fortigates
+  gather_facts: false
+
+  tasks:
+   - name: Authenticate and retrive firewall status
+     fortinet.fortios.fortios_monitor_fact:
+       vdom: "{{fortigate_vdom}}"
+       access_token: "{{fortigate_access_token}}"
+       selector: system_status
+     register: fortigate_auth_result
+     changed_when: false
+     no_log: false
+
+   - name: Report successful Fortigate authentication
+     ansible.builtin.debug:
+       msg:  >-
+         {{inventory_hostname}} authentication PASS

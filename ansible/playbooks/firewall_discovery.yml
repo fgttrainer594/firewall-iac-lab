@@ -1,0 +1,245 @@
+---
+# ============================================================
+# Read-Only Firewall Discovery
+# FortiGate + Palo Alto PAN-OS
+# ============================================================
+
+- name: Discover FortiGate devices
+  hosts: fortigates
+  gather_facts: false
+
+  tasks:
+    - name: Collect FortiGate runtime system status
+      fortinet.fortios.fortios_monitor_fact:
+        vdom: "{{ fortigate_vdom }}"
+        access_token: "{{ fortigate_access_token }}"
+        selector: system_status
+      register: fgt_system_status
+      changed_when: false
+      no_log: true
+
+    - name: Validate FortiGate runtime result
+      ansible.builtin.assert:
+        that:
+          - fgt_system_status.status | default('') == 'success'
+          - fgt_system_status.serial | default('') | length > 0
+          - fgt_system_status.version | default('') | length > 0
+        fail_msg: >-
+          {{ inventory_hostname }} returned an incomplete FortiGate
+          system-status response.
+        success_msg: >-
+          {{ inventory_hostname }} FortiGate runtime discovery PASS.
+
+    - name: Collect FortiGate configuration facts
+      fortinet.fortios.fortios_configuration_fact:
+        vdom: "{{ fortigate_vdom }}"
+        access_token: "{{ fortigate_access_token }}"
+        selectors:
+          - selector: system_interface
+          - selector: router_static
+          - selector: system_ha
+      register: fgt_config_facts
+      changed_when: false
+      no_log: true
+
+    - name: Store safe FortiGate runtime dictionary
+      ansible.builtin.set_fact:
+        fgt_runtime: "{{ fgt_system_status.results | default({}) }}"
+
+    - name: Show safe FortiGate result structure
+      ansible.builtin.debug:
+        msg:
+          top_level_keys: "{{ fgt_system_status.keys() | list }}"
+          results_type: "{{ fgt_runtime | type_debug }}"
+          results_keys: >-
+            {{
+              (fgt_runtime.keys() | list)
+              if fgt_runtime is mapping
+              else []
+            }}
+
+    - name: Normalize FortiGate discovery data
+      ansible.builtin.set_fact:
+        normalized_device:
+          inventory_name: "{{ inventory_hostname }}"
+          vendor: "Fortinet"
+          management_ip: "{{ ansible_host }}"
+          expected_name: "{{ device_name }}"
+          actual_hostname: >-
+            {{
+              fgt_runtime.get(
+                'hostname',
+                fgt_runtime.get('host_name', 'UNKNOWN')
+              )
+              if fgt_runtime is mapping
+              else 'UNKNOWN'
+            }}
+          model: >-
+            {{
+              fgt_runtime.get(
+                'model_name',
+                fgt_runtime.get('model', 'UNKNOWN')
+              )
+              if fgt_runtime is mapping
+              else 'UNKNOWN'
+            }}
+          serial: "{{ fgt_system_status.serial | default('UNKNOWN') }}"
+          version: "{{ fgt_system_status.version | default('UNKNOWN') }}"
+          api_status: "{{ fgt_system_status.status | default('UNKNOWN') }}"
+          vdom: "{{ fgt_system_status.vdom | default(fortigate_vdom) }}"
+          hostname_match: >-
+            {{
+              (
+                fgt_runtime.get(
+                  'hostname',
+                  fgt_runtime.get('host_name', '')
+                )
+                | lower
+              )
+              ==
+              (device_name | lower)
+              if
+              (
+                fgt_runtime.get(
+                  'hostname',
+                  fgt_runtime.get('host_name', '')
+                )
+                | length
+              ) > 0
+              else false
+            }}
+
+    - name: Show normalized FortiGate summary
+      ansible.builtin.debug:
+        msg:
+          - "Inventory : {{ normalized_device.inventory_name }}"
+          - "Mgmt IP   : {{ normalized_device.management_ip }}"
+          - "Hostname  : {{ normalized_device.actual_hostname }}"
+          - "Model     : {{ normalized_device.model }}"
+          - "Serial    : {{ normalized_device.serial }}"
+          - "Version   : {{ normalized_device.version }}"
+          - "API       : {{ normalized_device.api_status }}"
+          - "Name Match: {{ normalized_device.hostname_match }}"
+
+
+- name: Discover Palo Alto PAN-OS devices
+  hosts: paloaltos
+  gather_facts: false
+  connection: local
+
+  tasks:
+    - name: Collect PAN-OS operational facts
+      paloaltonetworks.panos.panos_facts:
+        provider: "{{ panos_provider }}"
+        gather_subset:
+          - system
+          - session
+          - interfaces
+          - ha
+          - routing
+          - vr
+          - vsys
+      changed_when: false
+      no_log: true
+
+    - name: Validate PAN-OS system facts
+      ansible.builtin.assert:
+        that:
+          - ansible_net_hostname is defined
+          - ansible_net_serial is defined
+          - ansible_net_version is defined
+          - ansible_net_model is defined
+        fail_msg: >-
+          {{ inventory_hostname }} returned incomplete PAN-OS system facts.
+        success_msg: >-
+          {{ inventory_hostname }} PAN-OS discovery PASS.
+
+    - name: Normalize PAN-OS discovery data
+      ansible.builtin.set_fact:
+        normalized_device:
+          inventory_name: "{{ inventory_hostname }}"
+          vendor: "Palo Alto Networks"
+          management_ip: "{{ ansible_host }}"
+          expected_name: "{{ device_name }}"
+          actual_hostname: "{{ ansible_net_hostname | default('UNKNOWN') }}"
+          model: "{{ ansible_net_model | default('UNKNOWN') }}"
+          serial: "{{ ansible_net_serial | default('UNKNOWN') }}"
+          version: "{{ ansible_net_version | default('UNKNOWN') }}"
+          uptime: "{{ ansible_net_uptime | default('UNKNOWN') }}"
+          ha_enabled: "{{ ansible_net_ha_enabled | default(false) }}"
+          ha_state: "{{ ansible_net_ha_localstate | default('standalone/unknown') }}"
+          session_usage: "{{ ansible_net_session_usage | default('UNKNOWN') }}"
+          session_max: "{{ ansible_net_session_max | default('UNKNOWN') }}"
+          interface_count: "{{ ansible_net_interfaces | default([]) | length }}"
+          route_count: "{{ ansible_net_routing_table | default([]) | length }}"
+          virtual_router_count: "{{ ansible_net_virtual_routers | default([]) | length }}"
+          vsys_count: "{{ ansible_net_virtual_systems | default([]) | length }}"
+          hostname_match: >-
+            {{
+              (ansible_net_hostname | default('') | lower)
+              ==
+              (device_name | lower)
+            }}
+
+    - name: Show normalized PAN-OS summary
+      ansible.builtin.debug:
+        msg:
+          - "Inventory : {{ normalized_device.inventory_name }}"
+          - "Mgmt IP   : {{ normalized_device.management_ip }}"
+          - "Hostname  : {{ normalized_device.actual_hostname }}"
+          - "Model     : {{ normalized_device.model }}"
+          - "Serial    : {{ normalized_device.serial }}"
+          - "Version   : {{ normalized_device.version }}"
+          - "HA State  : {{ normalized_device.ha_state }}"
+          - "Interfaces: {{ normalized_device.interface_count }}"
+          - "Routes    : {{ normalized_device.route_count }}"
+          - "Name Match: {{ normalized_device.hostname_match }}"
+
+
+- name: Build cross-vendor discovery report
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    report_directory: "{{ playbook_dir }}/../../reports/generated"
+    report_file: "{{ report_directory }}/playbook6-firewall-discovery.md"
+
+  tasks:
+    - name: Ensure report directory exists
+      ansible.builtin.file:
+        path: "{{ report_directory }}"
+        state: directory
+        mode: "0750"
+
+    - name: Verify every firewall produced normalized data
+      ansible.builtin.assert:
+        that:
+          - hostvars[item].normalized_device is defined
+        fail_msg: >-
+          {{ item }} did not produce normalized discovery data.
+      loop: "{{ groups['firewalls'] }}"
+
+    - name: Write normalized discovery report
+      ansible.builtin.copy:
+        dest: "{{ report_file }}"
+        mode: "0600"
+        content: |
+          # Firewall IaC Lab - Discovery Report
+
+          | Inventory | Vendor | Management IP | Device Hostname | Model | Serial | Version | Inventory Name Match |
+          |---|---|---|---|---|---|---|---|
+          {% for host in groups['firewalls'] %}
+          {% set d = hostvars[host].normalized_device %}
+          | {{ d.inventory_name }} | {{ d.vendor }} | {{ d.management_ip }} | {{ d.actual_hostname }} | {{ d.model }} | {{ d.serial }} | {{ d.version }} | {{ d.hostname_match }} |
+          {% endfor %}
+
+          ## Notes
+
+          - This file contains operational inventory metadata, not credentials.
+          - API tokens and API keys are intentionally excluded.
+          - Generated reports should remain local unless there is a deliberate reason to retain them.
+          - A false Inventory Name Match is a warning to investigate; it does not automatically mean the device is unreachable.
+
+    - name: Display report location
+      ansible.builtin.debug:
+        msg: "Discovery report created: {{ report_file }}"
