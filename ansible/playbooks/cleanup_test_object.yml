@@ -1,5 +1,5 @@
 ---
-- name: Remove FortiGate Playbook 7 test object
+- name: Remove FortiGate test object
   hosts: "{{ fortigate_target | default('fgt1') }}"
   gather_facts: false
   serial: 1
@@ -33,7 +33,7 @@
         success_msg: "{{ inventory_hostname }} cleanup verification PASS."
       when: not ansible_check_mode
 
-- name: Remove PAN-OS Playbook 7 test object
+- name: Remove PAN-OS test object
   hosts: "{{ panos_target | default('pa6') }}"
   gather_facts: false
   connection: local
@@ -54,7 +54,7 @@
         provider: "{{ panos_deploy_provider }}"
         admins:
           - "{{ panos_deploy_admin }}"
-        description: "Firewall IaC Lab Playbook 7 - remove test address object"
+        description: "Firewall IaC Lab - remove test address object"
         sync: true
       no_log: true
       when:

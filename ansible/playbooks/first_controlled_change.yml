@@ -9,7 +9,7 @@
     lab_test_ip: "198.51.100.10"
     lab_test_mask: "255.255.255.255"
     lab_fgt_subnet: "{{ lab_test_ip }} {{ lab_test_mask }}"
-    lab_description: "Managed by Firewall IaC Lab - Playbook 7"
+    lab_description: "Managed by Firewall IaC Lab"
 
   pre_tasks:
     - name: Confirm FortiGate deploy credential is defined
@@ -93,7 +93,7 @@
   vars:
     lab_address_name: "IAC-PB7-TEST-HOST"
     lab_panos_value: "198.51.100.10/32"
-    lab_description: "Managed by Firewall IaC Lab - Playbook 7"
+    lab_description: "Managed by Firewall IaC Lab"
 
   pre_tasks:
     - name: Confirm PAN-OS deploy provider is defined

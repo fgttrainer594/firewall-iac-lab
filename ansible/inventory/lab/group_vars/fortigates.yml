@@ -22,3 +22,8 @@ fortigate_vdom: root
 fortigate_access_token: >-
   {{ vault_fortigate_access_tokens[inventory_hostname] }}
 
+# ------------------------------------------------------------
+# Deploy Secret reference
+# ------------------------------------------------------------
+fortigate_deploy_access_token: >-
+  {{ vault_fortigate_deploy_access_tokens[inventory_hostname] }}
