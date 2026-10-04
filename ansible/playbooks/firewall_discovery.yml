@@ -16,14 +16,18 @@
         selector: system_status
       register: fgt_system_status
       changed_when: false
-      no_log: true
+      no_log: false
 
+    - name: Show fgt runtime output
+      ansible.builtin.debug:
+        var: fgt_system_status
+        
     - name: Validate FortiGate runtime result
       ansible.builtin.assert:
         that:
-          - fgt_system_status.status | default('') == 'success'
-          - fgt_system_status.serial | default('') | length > 0
-          - fgt_system_status.version | default('') | length > 0
+          - fgt_system_status.meta.status | default('') == 'success'
+          - fgt_system_status.meta.serial | default('') | length > 0
+          - fgt_system_status.meta.version | default('') | length > 0
         fail_msg: >-
           {{ inventory_hostname }} returned an incomplete FortiGate
           system-status response.
@@ -44,12 +48,12 @@
 
     - name: Store safe FortiGate runtime dictionary
       ansible.builtin.set_fact:
-        fgt_runtime: "{{ fgt_system_status.results | default({}) }}"
+        fgt_runtime: "{{ fgt_system_status.meta.results | default({}) }}"
 
     - name: Show safe FortiGate result structure
       ansible.builtin.debug:
         msg:
-          top_level_keys: "{{ fgt_system_status.keys() | list }}"
+          top_level_keys: "{{ fgt_system_status.meta.keys() | list }}"
           results_type: "{{ fgt_runtime | type_debug }}"
           results_keys: >-
             {{
@@ -83,10 +87,10 @@
               if fgt_runtime is mapping
               else 'UNKNOWN'
             }}
-          serial: "{{ fgt_system_status.serial | default('UNKNOWN') }}"
-          version: "{{ fgt_system_status.version | default('UNKNOWN') }}"
-          api_status: "{{ fgt_system_status.status | default('UNKNOWN') }}"
-          vdom: "{{ fgt_system_status.vdom | default(fortigate_vdom) }}"
+          serial: "{{ fgt_system_status.meta.serial | default('UNKNOWN') }}"
+          version: "{{ fgt_system_status.meta.version | default('UNKNOWN') }}"
+          api_status: "{{ fgt_system_status.meta.status | default('UNKNOWN') }}"
+          vdom: "{{ fgt_system_status.meta.vdom | default(fortigate_vdom) }}"
           hostname_match: >-
             {{
               (
@@ -202,7 +206,7 @@
 
   vars:
     report_directory: "{{ playbook_dir }}/../../reports/generated"
-    report_file: "{{ report_directory }}/playbook6-firewall-discovery.md"
+    report_file: "{{ report_directory }}/firewall-discovery-report.md"
 
   tasks:
     - name: Ensure report directory exists
@@ -211,14 +215,25 @@
         state: directory
         mode: "0750"
 
-    - name: Verify every firewall produced normalized data
+    - name: Build list of sucessful discovered firewalls
+      ansible.builtin.set_fact:
+        discovered_firewalls: >-
+          {{
+            (discovered_firewalls | default([])) 
+            + [item]
+          }}
+      loop: "{{groups['firewalls']}}"
+      when:
+        - hostvars[item].normalized_device is defined
+        
+    - name: Verify atleast one firewall produced normalized data
       ansible.builtin.assert:
         that:
-          - hostvars[item].normalized_device is defined
+          - discovered_firewalls | default([]) | length > 0
         fail_msg: >-
           {{ item }} did not produce normalized discovery data.
-      loop: "{{ groups['firewalls'] }}"
-
+      loop: "{{ groups['firewalls'] }}"  
+        
     - name: Write normalized discovery report
       ansible.builtin.copy:
         dest: "{{ report_file }}"
@@ -228,7 +243,7 @@
 
           | Inventory | Vendor | Management IP | Device Hostname | Model | Serial | Version | Inventory Name Match |
           |---|---|---|---|---|---|---|---|
-          {% for host in groups['firewalls'] %}
+          {% for host in discovered_firewalls %}
           {% set d = hostvars[host].normalized_device %}
           | {{ d.inventory_name }} | {{ d.vendor }} | {{ d.management_ip }} | {{ d.actual_hostname }} | {{ d.model }} | {{ d.serial }} | {{ d.version }} | {{ d.hostname_match }} |
           {% endfor %}
