@@ -65,6 +65,7 @@
     if_name: "{{ transit_interface }}"
     mode: layer3
     ip: ["{{ transit_ip }}"]
+    enable_dhcp: false
     zone_name: "{{ pc1_panos_transit_zone }}"
     vr_name: "{{ pc1_panos_virtual_router }}"
     vsys: "{{ panos_vsys }}"
@@ -79,6 +80,7 @@
     if_name: "{{ lan_interface }}"
     mode: layer3
     ip: ["{{ lan_gateway }}"]
+    enable_dhcp: false
     zone_name: "{{ pc1_panos_lan_zone }}"
     vr_name: "{{ pc1_panos_virtual_router }}"
     vsys: "{{ panos_vsys }}"
