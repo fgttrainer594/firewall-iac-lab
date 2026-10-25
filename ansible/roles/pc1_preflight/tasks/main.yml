@@ -1,0 +1,14 @@
+---
+- name: Validate routing-mode selection
+  ansible.builtin.assert:
+    that:
+      - pc1_routing_mode in ['static', 'ospf', 'bgp']
+    fail_msg: "pc1_routing_mode must be static, ospf, or bgp."
+  tags: [always, preflight]
+
+- name: Explain routing-mode safety
+  ansible.builtin.debug:
+    msg:
+      - "Routing mode: {{ pc1_routing_mode }}"
+      - "Static, OSPF and BGP are alternative labs; do not stack them blindly."
+  tags: [always, preflight]

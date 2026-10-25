@@ -1,0 +1,79 @@
+---
+- name: Remove objects from FortiGate
+  hosts: "{{ fortigate_target | default('fgt1') }}"
+  gather_facts: false
+  serial: 1
+
+  vars_files:
+    - ../vars/lab/shared_address_objects.yml
+
+  tasks:
+
+    - name: Remove FortiGate managed objects
+      fortinet.fortios.fortios_firewall_address:
+        vdom: "{{ fortigate_vdom }}"
+        state: absent
+        access_token: "{{ fortigate_deploy_access_token }}"
+        firewall_address:
+          name: "{{ address_object.name }}"
+      loop: "{{ shared_address_objects }}"
+      loop_control:
+        loop_var: address_object
+        label: "{{ address_object.name }}"
+      when:
+        - address_object.enabled
+        - "'fortigate' in address_object.platforms"
+      register: fgt_cleanup
+      no_log: true
+
+    - name: Report FortiGate cleanup status
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} cleanup
+          changed={{ fgt_cleanup.changed | default(false) }}.
+
+
+- name: Remove objects from PAN-OS
+  hosts: "{{ panos_target | default('pa6') }}"
+  gather_facts: false
+  connection: local
+  serial: 1
+
+  vars_files:
+    - ../vars/lab/shared_address_objects.yml
+
+  tasks:
+
+    - name: Remove PAN-OS managed objects
+      paloaltonetworks.panos.panos_address_object:
+        provider: "{{ panos_deploy_provider }}"
+        name: "{{ address_object.name }}"
+        vsys: "{{ panos_vsys }}"
+        state: absent
+      loop: "{{ shared_address_objects }}"
+      loop_control:
+        loop_var: address_object
+        label: "{{ address_object.name }}"
+      when:
+        - address_object.enabled
+        - "'panos' in address_object.platforms"
+      register: panos_cleanup
+      no_log: true
+
+    - name: Commit PAN-OS cleanup only when required
+      paloaltonetworks.panos.panos_commit_firewall:
+        provider: "{{ panos_deploy_provider }}"
+        admins:
+          - "{{ panos_deploy_admin }}"
+        description: "Firewall IaC Lab - cleanup demo objects"
+        sync: true
+      no_log: true
+      when:
+        - panos_cleanup.changed | default(false)
+        - not ansible_check_mode
+
+    - name: Report PAN-OS cleanup status
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} cleanup
+          changed={{ panos_cleanup.changed | default(false) }}.

@@ -26,4 +26,4 @@ fortigate_access_token: >-
 # Deploy Secret reference
 # ------------------------------------------------------------
 fortigate_deploy_access_token: >-
-  {{ vault_fortigate_deploy_access_tokens[inventory_hostname] }}
+  {{ vault_fortigate_deploy_tokens[inventory_hostname] }}

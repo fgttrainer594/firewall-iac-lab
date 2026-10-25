@@ -1,0 +1,28 @@
+---
+- name: validate design
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../vars/lab/pc1_enterprise.yml
+  roles:
+    - role: pc1_preflight
+      tags: [always, preflight]
+
+- name: FortiGate site baseline
+  hosts: "{{ fortigate_target | default('fgt1') }}"
+  gather_facts: false
+  serial: 1
+  vars_files:
+    - ../vars/lab/pc1_enterprise.yml
+  roles:
+    - role: fortigate_site_base
+
+- name: PAN-OS site baseline
+  hosts: "{{ panos_target | default('pa6') }}"
+  gather_facts: false
+  connection: local
+  serial: 1
+  vars_files:
+    - ../vars/lab/pc1_enterprise.yml
+  roles:
+    - role: panos_site_base

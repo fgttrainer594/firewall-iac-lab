@@ -22,3 +22,17 @@ panos_provider:
   api_key: "{{ vault_panos_api_keys[inventory_hostname] }}"
   port: "{{ panos_api_port }}"
 
+# ------------------------------------------------------------
+# Deploy provider
+# ------------------------------------------------------------
+
+panos_deploy_admin: svc_iac_deploy
+
+panos_deploy_provider:
+
+  ip_address: "{{ ansible_host }}"
+
+  api_key: >-
+    {{ vault_panos_deploy_api_keys[inventory_hostname] }}
+
+  port: "{{ panos_api_port }}"

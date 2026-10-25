@@ -1,0 +1,17 @@
+---
+pc1_routing_mode: static       # static | ospf | bgp
+pc1_enable_security_profiles: false
+pc1_enable_panos_nat_demo: false
+pc1_panos_virtual_router: default
+pc1_panos_lan_zone: LAN
+pc1_panos_transit_zone: TRANSIT
+pc1_fgt_asn: "65001"
+pc1_panos_asn: "65101"
+pc1_bgp_peer_group: "FGT-EBGP"
+pc1_service_objects:
+  - name: IAC-DNS-UDP
+    protocol: udp
+    destination_port: "53"
+  - name: IAC-HTTPS
+    protocol: tcp
+    destination_port: "443"

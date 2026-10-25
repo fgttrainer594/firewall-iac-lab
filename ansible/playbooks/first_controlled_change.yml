@@ -30,6 +30,9 @@
         params:
           name: "{{ lab_address_name }}"
       register: fgt_precheck
+      failed_when: >-
+          (fgt_precheck.meta.http_status| default(0) | int)
+          not in [200,404]
       changed_when: false
       no_log: true
 
@@ -70,13 +73,13 @@
       no_log: true
       when: not ansible_check_mode
 
+     
     - name: Verify FortiGate object exists with expected identity and IP
       ansible.builtin.assert:
         that:
-          - fgt_postcheck.results | default([]) | length == 1
-          - fgt_postcheck.results[0].name == lab_address_name
-          - fgt_postcheck.results[0].type | default('') == 'ipmask'
-          - lab_test_ip in (fgt_postcheck.results[0].subnet | default('') | string)
+          - fgt_postcheck.meta.results[0].name == lab_address_name
+          - fgt_postcheck.meta.results[0].type | default('') == 'ipmask'
+          - lab_test_ip in (fgt_postcheck.meta.results[0].subnet | default('') | string)
         fail_msg: >-
           FortiGate post-check failed on {{ inventory_hostname }}.
           The module result alone is not accepted as proof of deployment.
@@ -148,7 +151,7 @@
         provider: "{{ panos_deploy_provider }}"
         admins:
           - "{{ panos_deploy_admin }}"
-        description: "Firewall IaC Lab Playbook 7 - test address object"
+        description: "Firewall IaC Lab- test address object"
         sync: true
       register: panos_commit_result
       no_log: true

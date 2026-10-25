@@ -1,0 +1,294 @@
+---
+- name: Validate and preview data
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - ../vars/lab/shared_address_objects.yml
+
+  vars:
+    report_directory: "{{ playbook_dir }}/../../reports/generated"
+    report_file: "{{ report_directory }}/desired-address-objects.md"
+
+  tasks:
+
+    - name: Validate each address object data record
+      ansible.builtin.assert:
+        that:
+          - address_object.name is defined
+          - address_object.name | length > 0
+          - address_object.ipv4 is defined
+          - address_object.ipv4 | string | length > 0
+          - address_object.prefix | int == 32
+          - address_object.description is defined
+          - address_object.enabled is boolean
+          - address_object.platforms is defined
+          - address_object.platforms | length > 0
+        fail_msg: >-
+          Invalid data record:
+          {{ address_object | to_nice_yaml }}
+        success_msg: >-
+          Data validation PASS: {{ address_object.name }}
+      loop: "{{ shared_address_objects }}"
+      loop_control:
+        loop_var: address_object
+        label: "{{ address_object.name }}"
+
+    - name: Build enabled object list using a Jinja2 filter
+      ansible.builtin.set_fact:
+        enabled_address_objects: >-
+          {{
+            shared_address_objects
+            | selectattr('enabled', 'equalto', true)
+            | list
+          }}
+
+    - name: Show enabled object names using map
+      ansible.builtin.debug:
+        msg:
+          enabled_count: "{{ enabled_address_objects | length }}"
+          enabled_names: >-
+            {{
+              enabled_address_objects
+              | map(attribute='name')
+              | list
+            }}
+
+    - name: Ensure generated report directory exists
+      ansible.builtin.file:
+        path: "{{ report_directory }}"
+        state: directory
+        mode: "0750"
+
+    - name: Render desired-state report from Jinja2 template
+      ansible.builtin.template:
+        src: "../templates/08_desired_objects_report.md.j2"
+        dest: "{{ report_file }}"
+        mode: "0600"
+
+    - name: Show rendered report location
+      ansible.builtin.debug:
+        msg: "Desired-state report: {{ report_file }}"
+
+
+- name: Deploy data-driven address objects to FortiGate
+  hosts: "{{ fortigate_target | default('fgt1') }}"
+  gather_facts: false
+  serial: 1
+
+  vars_files:
+    - ../vars/lab/shared_address_objects.yml
+
+  tasks:
+
+    - name: Ensure FortiGate deploy credential exists
+      ansible.builtin.assert:
+        that:
+          - fortigate_deploy_access_token is defined
+          - fortigate_deploy_access_token | length > 0
+        fail_msg: >-
+          Missing FortiGate deploy credential for {{ inventory_hostname }}.
+
+    - name: Show how the same data becomes FortiGate syntax
+      ansible.builtin.debug:
+        msg: >-
+          {{ address_object.name }} ->
+          {{ address_object.ipv4 }} 255.255.255.255
+      loop: "{{ shared_address_objects }}"
+      loop_control:
+        loop_var: address_object
+        label: "{{ address_object.name }}"
+      when:
+        - address_object.enabled
+        - "'fortigate' in address_object.platforms"
+
+    - name: Ensure enabled FortiGate address objects are present
+      fortinet.fortios.fortios_firewall_address:
+        vdom: "{{ fortigate_vdom }}"
+        state: present
+        access_token: "{{ fortigate_deploy_access_token }}"
+        firewall_address:
+          name: "{{ address_object.name }}"
+          type: ipmask
+          subnet: "{{ address_object.ipv4 }} 255.255.255.255"
+          comment: >-
+            {{ address_object.description }} |
+            {{ address_object_owner }}
+      loop: "{{ shared_address_objects }}"
+      loop_control:
+        loop_var: address_object
+        label: "{{ address_object.name }}"
+      when:
+        - address_object.enabled
+        - "'fortigate' in address_object.platforms"
+      register: fgt_bulk_change
+      no_log: true
+
+    - name: Report FortiGate bulk change status
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} bulk configuration
+          changed={{ fgt_bulk_change.changed | default(false) }}.
+
+    - name: Read back enabled FortiGate address objects
+      fortinet.fortios.fortios_configuration_fact:
+        vdom: "{{ fortigate_vdom }}"
+        access_token: "{{ fortigate_deploy_access_token }}"
+        selector: firewall_address
+        params:
+          name: "{{ address_object.name }}"
+      loop: "{{ shared_address_objects }}"
+      loop_control:
+        loop_var: address_object
+        label: "{{ address_object.name }}"
+      when:
+        - address_object.enabled
+        - "'fortigate' in address_object.platforms"
+        - not ansible_check_mode
+      register: fgt_readbacks
+      changed_when: false
+      no_log: true
+
+    - name: Verify each FortiGate read-back result
+      ansible.builtin.assert:
+        that:
+          - verification.results | default([]) | length == 1
+          - verification.results[0].name == verification.address_object.name
+          - verification.address_object.ipv4 in
+            (verification.results[0].subnet | default('') | string)
+        fail_msg: >-
+          FortiGate verification failed:
+          {{ verification.address_object.name }}
+        success_msg: >-
+          FortiGate verification PASS:
+          {{ verification.address_object.name }}
+      loop: >-
+        {{
+          fgt_readbacks.results
+          | default([])
+          | rejectattr('skipped', 'defined')
+          | list
+        }}
+      loop_control:
+        loop_var: verification
+        label: "{{ verification.address_object.name }}"
+      when: not ansible_check_mode
+
+
+- name: Deploy data-driven address objects to PAN-OS
+  hosts: "{{ panos_target | default('pa6') }}"
+  gather_facts: false
+  connection: local
+  serial: 1
+
+  vars_files:
+    - ../vars/lab/shared_address_objects.yml
+
+  tasks:
+
+    - name: Ensure PAN-OS deploy credential exists
+      ansible.builtin.assert:
+        that:
+          - panos_deploy_provider is defined
+          - panos_deploy_provider.api_key is defined
+          - panos_deploy_provider.api_key | length > 0
+          - panos_deploy_admin is defined
+        fail_msg: >-
+          Missing PAN-OS deploy credential for {{ inventory_hostname }}.
+
+    - name: Show how the same data becomes PAN-OS syntax
+      ansible.builtin.debug:
+        msg: >-
+          {{ address_object.name }} ->
+          {{ address_object.ipv4 }}/{{ address_object.prefix }}
+      loop: "{{ shared_address_objects }}"
+      loop_control:
+        loop_var: address_object
+        label: "{{ address_object.name }}"
+      when:
+        - address_object.enabled
+        - "'panos' in address_object.platforms"
+
+    - name: Ensure enabled PAN-OS address objects are present
+      paloaltonetworks.panos.panos_address_object:
+        provider: "{{ panos_deploy_provider }}"
+        name: "{{ address_object.name }}"
+        address_type: ip-netmask
+        value: "{{ address_object.ipv4 }}/{{ address_object.prefix }}"
+        description: >-
+          {{ address_object.description }} |
+          {{ address_object_owner }}
+        vsys: "{{ panos_vsys }}"
+        state: present
+      loop: "{{ shared_address_objects }}"
+      loop_control:
+        loop_var: address_object
+        label: "{{ address_object.name }}"
+      when:
+        - address_object.enabled
+        - "'panos' in address_object.platforms"
+      register: panos_bulk_change
+      no_log: true
+
+    - name: Report PAN-OS bulk change status
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} candidate configuration
+          changed={{ panos_bulk_change.changed | default(false) }}.
+
+    - name: Commit only when PAN-OS candidate configuration changed
+      paloaltonetworks.panos.panos_commit_firewall:
+        provider: "{{ panos_deploy_provider }}"
+        admins:
+          - "{{ panos_deploy_admin }}"
+        description: "Firewall IaC Lab - data-driven address objects"
+        sync: true
+      no_log: true
+      when:
+        - panos_bulk_change.changed | default(false)
+        - not ansible_check_mode
+
+    - name: Gather enabled PAN-OS address objects
+      paloaltonetworks.panos.panos_address_object:
+        provider: "{{ panos_deploy_provider }}"
+        state: gathered
+        gathered_filter: >-
+          name == '{{ address_object.name }}'
+        vsys: "{{ panos_vsys }}"
+      loop: "{{ shared_address_objects }}"
+      loop_control:
+        loop_var: address_object
+        label: "{{ address_object.name }}"
+      when:
+        - address_object.enabled
+        - "'panos' in address_object.platforms"
+        - not ansible_check_mode
+      register: panos_readbacks
+      changed_when: false
+      no_log: true
+
+    - name: Verify each PAN-OS read-back result
+      ansible.builtin.assert:
+        that:
+          - verification.gathered | default([]) | length == 1
+          - verification.gathered[0].name == verification.address_object.name
+          - verification.gathered[0].value ==
+            (verification.address_object.ipv4 ~ '/' ~
+             verification.address_object.prefix)
+        fail_msg: >-
+          PAN-OS verification failed:
+          {{ verification.address_object.name }}
+        success_msg: >-
+          PAN-OS verification PASS:
+          {{ verification.address_object.name }}
+      loop: >-
+        {{
+          panos_readbacks.results
+          | default([])
+          | rejectattr('skipped', 'defined')
+          | list
+        }}
+      loop_control:
+        loop_var: verification
+        label: "{{ verification.address_object.name }}"
+      when: not ansible_check_mode

@@ -1,0 +1,10 @@
+---
+- name: Commit PAN-OS paced-class changes
+  paloaltonetworks.panos.panos_commit_firewall:
+    provider: "{{ panos_deploy_provider }}"
+    admins:
+      - "{{ panos_deploy_admin }}"
+    description: "Enterprise site baseline"
+    sync: true
+  no_log: true
+  when: not ansible_check_mode
