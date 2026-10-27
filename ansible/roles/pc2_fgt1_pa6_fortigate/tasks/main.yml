@@ -7,12 +7,13 @@
     system_interface:
       name: "{{ pc2_fgt1_pa6_fgt_loopback_name }}"
       type: loopback
+      vdom: "{{ fortigate_vdom }}"
       ip: "{{ pc2_fgt1_pa6_fgt_loopback_ip }}"
       allowaccess:
         - ping
       role: lan
       status: up
-  no_log: true
+  no_log: false
 
 - name: Create FGT1 protected address object
   fortinet.fortios.fortios_firewall_address:

@@ -1,5 +1,5 @@
 ---
-pc2_fgt1_pa6_enable: false
+pc2_fgt1_pa6_enable: true
 
 pc2_fgt1_pa6_fgt_underlay_interface: port3
 pc2_fgt1_pa6_fgt_underlay_ip: 172.16.1.1
