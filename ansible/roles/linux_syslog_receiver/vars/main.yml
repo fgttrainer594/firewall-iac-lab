@@ -1,0 +1,5 @@
+---
+pc2_rsyslog_package: rsyslog
+pc2_rsyslog_service: rsyslog
+pc2_rsyslog_conf: /etc/rsyslog.d/30-firewalls.conf
+pc2_rsyslog_logrotate: /etc/logrotate.d/firewall-iac

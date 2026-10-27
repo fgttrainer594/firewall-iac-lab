@@ -1,0 +1,21 @@
+---
+- name: Create FortiGate LDAP configuration reference
+  hosts: "{{ fortigate_target | default('fgt1') }}"
+  gather_facts: false
+  serial: 1
+  vars_files:
+    - ../vars/lab/pc2.yml
+  roles:
+    - role: fortigate_ldap_reference
+      when: pc2_enable_ldap_reference
+
+- name: Create PAN-OS LDAP configuration reference
+  hosts: "{{ panos_target | default('pa6') }}"
+  gather_facts: false
+  connection: local
+  serial: 1
+  vars_files:
+    - ../vars/lab/pc2.yml
+  roles:
+    - role: panos_ldap_reference
+      when: pc2_enable_ldap_reference

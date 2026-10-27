@@ -1,0 +1,68 @@
+---
+pc2_fgt1_pa6_enable: false
+
+pc2_fgt1_pa6_fgt_underlay_interface: port3
+pc2_fgt1_pa6_fgt_underlay_ip: 172.16.1.1
+
+pc2_fgt1_pa6_pan_underlay_interface: ethernet1/1
+pc2_fgt1_pa6_pan_underlay_ip: 172.16.1.2
+pc2_fgt1_pa6_pan_underlay_ip_cidr: 172.16.1.2/30
+
+pc2_fgt1_pa6_fgt_loopback_name: PC2-FGT1-LO
+pc2_fgt1_pa6_fgt_loopback_ip: 192.168.101.1/32
+
+pc2_fgt1_pa6_pan_loopback_name: loopback.101
+pc2_fgt1_pa6_pan_loopback_ip: 192.168.201.1/32
+
+pc2_fgt1_pa6_fgt_local_object: PC2-FGT1-PROTECTED
+pc2_fgt1_pa6_fgt_remote_object: PC2-PA6-PROTECTED
+
+pc2_fgt1_pa6_fgt_vpn_name: PC2-FGT1-PA6
+pc2_fgt1_pa6_fgt_phase2_name: PC2-FGT1-PA6-P2
+pc2_fgt1_pa6_fgt_route_seq: 7201
+pc2_fgt1_pa6_fgt_policy_out_id: 7201
+pc2_fgt1_pa6_fgt_policy_in_id: 7202
+
+pc2_fgt1_pa6_pan_management_profile: PC2-PING
+pc2_fgt1_pa6_pan_loopback_zone: PC2-SITE-B
+pc2_fgt1_pa6_pan_vpn_zone: PC2-VPN
+pc2_fgt1_pa6_pan_virtual_router: default
+
+pc2_fgt1_pa6_pan_tunnel_interface: tunnel.101
+pc2_fgt1_pa6_pan_ike_crypto_name: PC2-IKE-CRYPTO
+pc2_fgt1_pa6_pan_ike_gateway_name: PC2-FGT1-PA6-IKE
+pc2_fgt1_pa6_pan_ipsec_crypto_name: PC2-IPSEC-CRYPTO
+pc2_fgt1_pa6_pan_ipsec_tunnel_name: PC2-FGT1-PA6-IPSEC
+pc2_fgt1_pa6_pan_proxy_id_name: PC2-FGT1-PA6-PROXY
+pc2_fgt1_pa6_pan_route_name: PC2-TO-FGT1-LO
+
+pc2_fgt1_pa6_ike_version: "2"
+
+pc2_fgt1_pa6_fgt_phase1_proposal:
+  - aes256-sha256
+
+pc2_fgt1_pa6_fgt_phase1_dhgrp:
+  - "14"
+
+pc2_fgt1_pa6_pan_ike_encryption:
+  - aes-256-cbc
+
+pc2_fgt1_pa6_pan_ike_authentication:
+  - sha256
+
+pc2_fgt1_pa6_pan_ike_dh_group:
+  - group14
+
+pc2_fgt1_pa6_fgt_phase2_proposal:
+  - aes256-sha256
+
+pc2_fgt1_pa6_fgt_phase2_dhgrp:
+  - "14"
+
+pc2_fgt1_pa6_pan_ipsec_encryption:
+  - aes-256-cbc
+
+pc2_fgt1_pa6_pan_ipsec_authentication:
+  - sha256
+
+pc2_fgt1_pa6_pan_ipsec_dh_group: group14

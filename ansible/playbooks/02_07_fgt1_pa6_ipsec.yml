@@ -1,0 +1,59 @@
+---
+- name: Configure PA6 side of FGT1 PA6 IPsec VPN
+  hosts: pa6
+  connection: local
+  gather_facts: false
+
+  vars_files:
+    - ../vars/lab/pc2_fgt1_pa6_ipsec.yml
+
+  pre_tasks:
+    - name: Validate shared VPN secret
+      ansible.builtin.assert:
+        that:
+          - vault_pc2_fgt1_pa6_psk is defined
+          - vault_pc2_fgt1_pa6_psk | length >= 16
+        fail_msg: >-
+          vault_pc2_fgt1_pa6_psk is missing or too short.
+          Add it to the encrypted Vault file.
+      no_log: true
+
+    - name: Validate PA6 underlay settings
+      ansible.builtin.assert:
+        that:
+          - pc2_fgt1_pa6_pan_underlay_interface == 'ethernet1/1'
+          - pc2_fgt1_pa6_pan_underlay_ip == '172.16.1.2'
+          - pc2_fgt1_pa6_fgt_underlay_ip == '172.16.1.1'
+
+  roles:
+    - role: pc2_fgt1_pa6_panos
+      when: pc2_fgt1_pa6_enable
+
+- name: Configure FGT1 side of FGT1 PA6 IPsec VPN
+  hosts: fgt1
+  gather_facts: false
+
+  vars_files:
+    - ../vars/lab/pc2_fgt1_pa6_ipsec.yml
+
+  pre_tasks:
+    - name: Validate shared VPN secret
+      ansible.builtin.assert:
+        that:
+          - vault_pc2_fgt1_pa6_psk is defined
+          - vault_pc2_fgt1_pa6_psk | length >= 16
+        fail_msg: >-
+          vault_pc2_fgt1_pa6_psk is missing or too short.
+          Add it to the encrypted Vault file.
+      no_log: true
+
+    - name: Validate FGT1 underlay settings
+      ansible.builtin.assert:
+        that:
+          - pc2_fgt1_pa6_fgt_underlay_interface == 'port3'
+          - pc2_fgt1_pa6_fgt_underlay_ip == '172.16.1.1'
+          - pc2_fgt1_pa6_pan_underlay_ip == '172.16.1.2'
+
+  roles:
+    - role: pc2_fgt1_pa6_fortigate
+      when: pc2_fgt1_pa6_enable

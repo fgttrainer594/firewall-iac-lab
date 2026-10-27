@@ -1,0 +1,373 @@
+---
+# ============================================================
+# Determine local and remote sides.
+# ============================================================
+
+- name: Determine VPN endpoint roles
+  ansible.builtin.set_fact:
+
+    pc2_vpn_local_host: >-
+      {{
+        vpn_link.left_host
+        if inventory_hostname == vpn_link.left_host
+        else vpn_link.right_host
+      }}
+
+    pc2_vpn_remote_host: >-
+      {{
+        vpn_link.right_host
+        if inventory_hostname == vpn_link.left_host
+        else vpn_link.left_host
+      }}
+
+    pc2_vpn_local_lan: >-
+      {{
+        vpn_link.left_lan
+        if inventory_hostname == vpn_link.left_host
+        else vpn_link.right_lan
+      }}
+
+    pc2_vpn_remote_lan: >-
+      {{
+        vpn_link.right_lan
+        if inventory_hostname == vpn_link.left_host
+        else vpn_link.left_lan
+      }}
+
+
+# ============================================================
+# Retrieve peer WAN address from hostvars.
+# ============================================================
+
+- name: Resolve discovered peer WAN address
+  ansible.builtin.set_fact:
+
+    pc2_vpn_peer_wan_ip: >-
+      {{
+        hostvars[pc2_vpn_remote_host]
+        .pc2_discovered_wan_ip
+        | default('UNKNOWN')
+      }}
+
+
+# ============================================================
+# Create deterministic object names.
+# ============================================================
+
+- name: Build VPN object names
+  ansible.builtin.set_fact:
+
+    pc2_vpn_local_address_name: >-
+      IAC-VPN-LOCAL-{{ vpn_link.name }}
+
+    pc2_vpn_remote_address_name: >-
+      IAC-VPN-REMOTE-{{ vpn_link.name }}
+
+
+# ============================================================
+# Validate all runtime values before writing configuration.
+# ============================================================
+
+- name: Validate VPN runtime data
+  ansible.builtin.assert:
+    that:
+      - pc2_discovered_wan_ip is defined
+      - pc2_discovered_wan_ip != 'UNKNOWN'
+
+      - pc2_vpn_peer_wan_ip is defined
+      - pc2_vpn_peer_wan_ip != 'UNKNOWN'
+
+      - pc2_vpn_local_lan is defined
+      - pc2_vpn_remote_lan is defined
+
+    fail_msg: >-
+      Runtime VPN data is incomplete for
+      {{ vpn_link.name }}
+      on {{ inventory_hostname }}.
+
+      Local WAN =
+      {{ pc2_discovered_wan_ip | default('UNKNOWN') }}
+
+      Remote host =
+      {{ pc2_vpn_remote_host | default('UNKNOWN') }}
+
+      Remote WAN =
+      {{ pc2_vpn_peer_wan_ip | default('UNKNOWN') }}
+
+    success_msg: >-
+      {{ vpn_link.name }}
+
+      Local host =
+      {{ inventory_hostname }}
+
+      Local WAN =
+      {{ pc2_discovered_wan_ip }}
+
+      Remote host =
+      {{ pc2_vpn_remote_host }}
+
+      Remote WAN =
+      {{ pc2_vpn_peer_wan_ip }}
+
+
+# ============================================================
+# VPN configuration transaction.
+# ============================================================
+
+- name: Configure VPN link
+  block:
+
+    # --------------------------------------------------------
+    # Local LAN address object.
+    # --------------------------------------------------------
+
+    - name: Create local LAN address object
+      fortinet.fortios.fortios_firewall_address:
+        vdom: "{{ fortigate_vdom }}"
+        state: present
+        access_token: "{{ fortigate_deploy_access_token }}"
+
+        firewall_address:
+          name: "{{ pc2_vpn_local_address_name }}"
+
+          subnet: >-
+            {{ pc2_vpn_local_lan.split('/')[0] }}
+            255.255.255.0
+
+      no_log: true
+
+
+    # --------------------------------------------------------
+    # Remote LAN address object.
+    # --------------------------------------------------------
+
+    - name: Create remote LAN address object
+      fortinet.fortios.fortios_firewall_address:
+        vdom: "{{ fortigate_vdom }}"
+        state: present
+        access_token: "{{ fortigate_deploy_access_token }}"
+
+        firewall_address:
+          name: "{{ pc2_vpn_remote_address_name }}"
+
+          subnet: >-
+            {{ pc2_vpn_remote_lan.split('/')[0] }}
+            255.255.255.0
+
+      no_log: true
+
+
+    # --------------------------------------------------------
+    # IPsec Phase 1.
+    # --------------------------------------------------------
+
+    - name: Configure IPsec Phase 1
+      fortinet.fortios.fortios_vpn_ipsec_phase1_interface:
+        vdom: "{{ fortigate_vdom }}"
+        state: present
+        access_token: "{{ fortigate_deploy_access_token }}"
+
+        vpn_ipsec_phase1_interface:
+
+          name: "{{ vpn_link.name }}"
+
+          interface: "{{ wan_interface }}"
+
+          type: static
+
+          remote_gw: "{{ pc2_vpn_peer_wan_ip }}"
+
+          peertype: any
+
+          ike_version: "{{ pc2_vpn_ike_version }}"
+
+          proposal: "{{ pc2_vpn_phase1_proposals }}"
+
+          dhgrp: "{{ pc2_vpn_dh_groups }}"
+
+          psksecret: "{{ vault_pc2_ipsec_psk }}"
+
+          dpd: "{{ pc2_vpn_dpd }}"
+
+          nattraversal: "{{ pc2_vpn_natt }}"
+
+          net_device: enable
+
+      no_log: true
+
+
+    # --------------------------------------------------------
+    # IPsec Phase 2.
+    # --------------------------------------------------------
+
+    - name: Configure IPsec Phase 2
+      fortinet.fortios.fortios_vpn_ipsec_phase2_interface:
+        vdom: "{{ fortigate_vdom }}"
+        state: present
+        access_token: "{{ fortigate_deploy_access_token }}"
+
+        vpn_ipsec_phase2_interface:
+
+          name: "{{ vpn_link.name }}-P2"
+
+          phase1name: "{{ vpn_link.name }}"
+
+          proposal: "{{ pc2_vpn_phase2_proposals }}"
+
+          pfs: "{{ pc2_vpn_pfs }}"
+
+          dhgrp: "{{ pc2_vpn_dh_groups }}"
+
+          src_addr_type: subnet
+
+          src_subnet: >-
+            {{ pc2_vpn_local_lan.split('/')[0] }}
+            255.255.255.0
+
+          dst_addr_type: subnet
+
+          dst_subnet: >-
+            {{ pc2_vpn_remote_lan.split('/')[0] }}
+            255.255.255.0
+
+          auto_negotiate: enable
+
+      no_log: true
+
+
+    # --------------------------------------------------------
+    # Route to remote LAN.
+    # --------------------------------------------------------
+
+    - name: Create route to remote LAN
+      fortinet.fortios.fortios_router_static:
+        vdom: "{{ fortigate_vdom }}"
+        state: present
+        access_token: "{{ fortigate_deploy_access_token }}"
+
+        router_static:
+
+          seq_num: "{{ vpn_link.route_seq }}"
+
+          dst: >-
+            {{ pc2_vpn_remote_lan.split('/')[0] }}
+            255.255.255.0
+
+          device: "{{ vpn_link.name }}"
+
+      no_log: true
+
+
+    # --------------------------------------------------------
+    # Local LAN to VPN.
+    # --------------------------------------------------------
+
+    - name: Create local to VPN policy
+      fortinet.fortios.fortios_firewall_policy:
+        vdom: "{{ fortigate_vdom }}"
+        state: present
+        access_token: "{{ fortigate_deploy_access_token }}"
+
+        firewall_policy:
+
+          policyid: "{{ vpn_link.policy_out_id }}"
+
+          name: "{{ vpn_link.name }}-LOCAL-TO-VPN"
+
+          srcintf:
+            - name: "{{ transit_interface }}"
+
+          dstintf:
+            - name: "{{ vpn_link.name }}"
+
+          srcaddr:
+            - name: "{{ pc2_vpn_local_address_name }}"
+
+          dstaddr:
+            - name: "{{ pc2_vpn_remote_address_name }}"
+
+          action: accept
+
+          schedule: always
+
+          service:
+            - name: ALL
+
+          nat: disable
+
+          logtraffic: all
+
+      no_log: true
+
+
+    # --------------------------------------------------------
+    # VPN to local LAN.
+    # --------------------------------------------------------
+
+    - name: Create VPN to local policy
+      fortinet.fortios.fortios_firewall_policy:
+        vdom: "{{ fortigate_vdom }}"
+        state: present
+        access_token: "{{ fortigate_deploy_access_token }}"
+
+        firewall_policy:
+
+          policyid: "{{ vpn_link.policy_in_id }}"
+
+          name: "{{ vpn_link.name }}-VPN-TO-LOCAL"
+
+          srcintf:
+            - name: "{{ vpn_link.name }}"
+
+          dstintf:
+            - name: "{{ transit_interface }}"
+
+          srcaddr:
+            - name: "{{ pc2_vpn_remote_address_name }}"
+
+          dstaddr:
+            - name: "{{ pc2_vpn_local_address_name }}"
+
+          action: accept
+
+          schedule: always
+
+          service:
+            - name: ALL
+
+          nat: disable
+
+          logtraffic: all
+
+      no_log: true
+
+
+  rescue:
+
+    - name: Report VPN failure
+      ansible.builtin.debug:
+        msg:
+          - "VPN deployment failed."
+          - "Device: {{ inventory_hostname }}"
+          - "VPN: {{ vpn_link.name }}"
+          - "Local WAN: {{ pc2_discovered_wan_ip }}"
+          - "Remote host: {{ pc2_vpn_remote_host }}"
+          - "Remote WAN: {{ pc2_vpn_peer_wan_ip }}"
+
+
+    - name: Stop VPN deployment
+      ansible.builtin.fail:
+        msg: >-
+          VPN deployment failed for
+          {{ vpn_link.name }}
+          on {{ inventory_hostname }}.
+
+
+  always:
+
+    - name: Record VPN checkpoint
+      ansible.builtin.debug:
+        msg: >-
+          VPN processing completed for
+          {{ vpn_link.name }}
+          on {{ inventory_hostname }}.

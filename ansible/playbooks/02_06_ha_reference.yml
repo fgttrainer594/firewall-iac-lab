@@ -1,0 +1,8 @@
+---
+- name: Class 2 HA architecture and safety gate
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../vars/lab/pc2.yml
+  roles:
+    - ha_reference

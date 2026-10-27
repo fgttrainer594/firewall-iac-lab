@@ -1,0 +1,40 @@
+---
+
+- name: Validate VPN PSK
+  ansible.builtin.assert:
+    that:
+      - vault_pc2_ipsec_psk is defined
+      - vault_pc2_ipsec_psk | length >= 16
+
+    fail_msg: >-
+      vault_pc2_ipsec_psk is missing
+      or shorter than 16 characters.
+
+  no_log: true
+
+
+- name: Validate local WAN discovery result
+  ansible.builtin.assert:
+    that:
+      - pc2_discovered_wan_ip is defined
+      - pc2_discovered_wan_ip | length > 0
+      - pc2_discovered_wan_ip != 'UNKNOWN'
+
+    fail_msg: >-
+      WAN discovery was not completed for
+      {{ inventory_hostname }}.
+
+
+- name: Configure applicable VPN links
+  ansible.builtin.include_tasks:
+    file: configure_link.yml
+
+  loop: "{{ pc2_vpn_links }}"
+
+  loop_control:
+    loop_var: vpn_link
+    label: "{{ vpn_link.name }}"
+
+  when:
+    - inventory_hostname in
+      [vpn_link.left_host, vpn_link.right_host]

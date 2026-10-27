@@ -1,0 +1,14 @@
+---
+- name: Configure FortiGate primary remote syslog server
+  fortinet.fortios.fortios_log_syslogd_setting:
+    vdom: "{{ fortigate_vdom }}"
+    access_token: "{{ fortigate_deploy_access_token }}"
+    log_syslogd_setting:
+      status: enable
+      server: "{{ pc2_syslog_server_ip }}"
+      port: "{{ pc2_syslog_server_port }}"
+      mode: "{{ pc2_syslog_protocol }}"
+      format: rfc5424
+      facility: local7
+      interface_select_method: auto
+  no_log: true

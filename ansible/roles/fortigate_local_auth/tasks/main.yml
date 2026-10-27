@@ -1,0 +1,30 @@
+---
+- name: Validate FortiGate local user password secret
+  ansible.builtin.assert:
+    that:
+      - vault_pc2_fgt_local_user_password is defined
+      - vault_pc2_fgt_local_user_password | length >= 8
+  no_log: true
+
+- name: Ensure FortiGate local user exists
+  fortinet.fortios.fortios_user_local:
+    vdom: "{{ fortigate_vdom }}"
+    state: present
+    access_token: "{{ fortigate_deploy_access_token }}"
+    user_local:
+      name: "{{ pc2_fgt_local_user }}"
+      type: password
+      passwd: "{{ vault_pc2_fgt_local_user_password }}"
+      status: enable
+  no_log: true
+
+- name: Ensure FortiGate local user group exists
+  fortinet.fortios.fortios_user_group:
+    vdom: "{{ fortigate_vdom }}"
+    state: present
+    access_token: "{{ fortigate_deploy_access_token }}"
+    user_group:
+      name: "{{ pc2_fgt_local_group }}"
+      member:
+        - name: "{{ pc2_fgt_local_user }}"
+  no_log: true

@@ -1,0 +1,10 @@
+---
+- name: Commit PAN-OS LDAP reference changes
+  paloaltonetworks.panos.panos_commit_firewall:
+    provider: "{{ panos_deploy_provider }}"
+    admins:
+      - "{{ panos_deploy_admin }}"
+    description: "IaC LDAP reference configuration"
+    sync: true
+  no_log: true
+  when: not ansible_check_mode

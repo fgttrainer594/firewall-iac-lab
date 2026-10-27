@@ -1,0 +1,21 @@
+---
+- name: Configure FortiGate remote logging
+  hosts: "{{ fortigate_target | default('fgt1') }}"
+  gather_facts: false
+  serial: 1
+  vars_files:
+    - ../vars/lab/pc2.yml
+  roles:
+    - role: fortigate_logging
+      when: pc2_enable_firewall_logging
+
+- name: Configure PAN-OS remote logging
+  hosts: "{{ panos_target | default('pa6') }}"
+  gather_facts: false
+  connection: local
+  serial: 1
+  vars_files:
+    - ../vars/lab/pc2.yml
+  roles:
+    - role: panos_logging
+      when: pc2_enable_firewall_logging

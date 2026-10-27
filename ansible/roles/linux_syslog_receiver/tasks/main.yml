@@ -1,0 +1,46 @@
+---
+- name: Install rsyslog
+  ansible.builtin.package:
+    name: "{{ pc2_rsyslog_package }}"
+    state: present
+
+- name: Ensure firewall log directory exists
+  ansible.builtin.file:
+    path: "{{ pc2_rsyslog_log_root }}"
+    state: directory
+    owner: root
+    group: adm
+    mode: "0750"
+
+- name: Copy static logrotate configuration
+  ansible.builtin.copy:
+    src: firewall-logrotate.conf
+    dest: "{{ pc2_rsyslog_logrotate }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Render rsyslog receiver configuration
+  ansible.builtin.template:
+    src: 30-firewalls.conf.j2
+    dest: "{{ pc2_rsyslog_conf }}"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "rsyslogd -N1 -f %s"
+  notify: Restart rsyslog
+
+- name: Ensure rsyslog service is enabled and running
+  ansible.builtin.service:
+    name: "{{ pc2_rsyslog_service }}"
+    state: started
+    enabled: true
+
+- name: Flush pending rsyslog restart handlers
+  ansible.builtin.meta: flush_handlers
+  
+- name: Verify UDP 514 is listening
+  ansible.builtin.shell: "ss -lun | grep -E '[:.]{{ pc2_rsyslog_port }}[[:space:]]'"
+  register: pc2_rsyslog_listener
+  changed_when: false
+  failed_when: pc2_rsyslog_listener.rc != 0

@@ -1,0 +1,46 @@
+---
+- name: Validate reference LDAP bind password secret
+  ansible.builtin.assert:
+    that:
+      - vault_pc2_reference_ldap_bind_password is defined
+      - vault_pc2_reference_ldap_bind_password | length > 0
+  no_log: true
+
+- name: Create PAN-OS LDAP Server Profile reference object
+  paloaltonetworks.panos.panos_config_element:
+    provider: "{{ panos_deploy_provider }}"
+    xpath: /config/shared/server-profile/ldap
+    element: |
+      <entry name="{{ pc2_ldap_profile_name }}">
+        <ldap-type>other</ldap-type>
+        <server>
+          <entry name="DEMO-LDAP-1">
+            <address>{{ pc2_ldap_server }}</address>
+            <port>{{ pc2_ldap_port }}</port>
+          </entry>
+        </server>
+        <base>{{ pc2_ldap_base_dn }}</base>
+        <bind-dn>{{ pc2_ldap_bind_dn }}</bind-dn>
+        <bind-password>{{ vault_pc2_reference_ldap_bind_password }}</bind-password>
+        <ssl>yes</ssl>
+        <verify-server-certificate>no</verify-server-certificate>
+        <bind-timelimit>30</bind-timelimit>
+        <timelimit>30</timelimit>
+        <retry-interval>60</retry-interval>
+      </entry>
+    state: present
+  notify: Commit PAN-OS LDAP reference changes
+  no_log: true
+
+- name: Commit LDAP reference object before verification
+  ansible.builtin.meta: flush_handlers
+
+- name: Read PAN-OS LDAP reference configuration
+  paloaltonetworks.panos.panos_type_cmd:
+    provider: "{{ panos_deploy_provider }}"
+    cmd: get
+    xpath: >-
+      /config/shared/server-profile/ldap/entry[@name='{{ pc2_ldap_profile_name }}']
+  register: pc2_panos_ldap_readback
+  changed_when: false
+  no_log: true

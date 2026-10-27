@@ -1,0 +1,20 @@
+---
+- name: Validate PAN-OS local administrator password secret
+  ansible.builtin.assert:
+    that:
+      - vault_pc2_panos_local_admin_password is defined
+      - vault_pc2_panos_local_admin_password | length >= 8
+  no_log: true
+
+- name: Ensure PAN-OS local read-only administrator exists
+  paloaltonetworks.panos.panos_administrator:
+    provider: "{{ panos_deploy_provider }}"
+    admin_username: "{{ pc2_panos_local_admin }}"
+    admin_password: "{{ vault_pc2_panos_local_admin_password }}"
+    superuser_read_only: true
+    state: present
+  notify: Commit PAN-OS local authentication changes
+  no_log: true
+
+- name: Commit administrator change before verification
+  ansible.builtin.meta: flush_handlers

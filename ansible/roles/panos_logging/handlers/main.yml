@@ -1,0 +1,9 @@
+---
+- name: Commit PAN-OS PC2 logging
+  paloaltonetworks.panos.panos_commit_firewall:
+    provider: "{{ panos_deploy_provider }}"
+    admins:
+      - "{{ panos_deploy_admin }}"
+    description: "Paced Class 2 logging changes"
+    sync: true
+  no_log: true

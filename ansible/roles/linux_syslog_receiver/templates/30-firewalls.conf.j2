@@ -1,0 +1,7 @@
+# Managed by Ansible — Paced Class 2
+$CreateDirs on
+module(load="imudp")
+input(type="imudp" port="{{ pc2_rsyslog_port }}")
+$template FirewallRemoteLogs,"{{ pc2_rsyslog_log_root }}/%HOSTNAME%/%PROGRAMNAME%.log"
+*.* ?FirewallRemoteLogs
+& stop

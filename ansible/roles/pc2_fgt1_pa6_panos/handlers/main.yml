@@ -1,10 +1,8 @@
 ---
-- name: Commit PAN-OS paced-class changes
+- name: Commit PA6 VPN changes
   paloaltonetworks.panos.panos_commit_firewall:
     provider: "{{ panos_deploy_provider }}"
-    admins:
-      - "{{ panos_deploy_admin }}"
-    description: "Enterprise site baseline"
+    description: "PC2 FGT1 PA6 IPsec VPN"
     sync: true
   no_log: true
   when: not ansible_check_mode

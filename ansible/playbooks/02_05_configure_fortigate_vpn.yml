@@ -1,0 +1,142 @@
+---
+
+- name: Discover FortiGate WAN addresses
+  hosts: fortigates
+  gather_facts: false
+  serial: 1
+
+  vars_files:
+    - ../vars/lab/pc2.yml
+
+  tasks:
+
+    - name: Validate WAN interface variable
+      ansible.builtin.assert:
+        that:
+          - wan_interface is defined
+          - wan_interface | length > 0
+
+        fail_msg: >-
+          wan_interface is not defined for
+          {{ inventory_hostname }}.
+
+      tags:
+        - always
+        - discovery
+
+
+    - name: Read current WAN interface state
+      fortinet.fortios.fortios_monitor_fact:
+        vdom: "{{ fortigate_vdom }}"
+        access_token: "{{ fortigate_deploy_access_token }}"
+
+        selector: system_interface
+
+        params:
+          interface_name: "{{ wan_interface }}"
+
+      register: pc2_wan_interface_monitor
+
+      changed_when: false
+
+      no_log: true
+
+      tags:
+        - always
+        - discovery
+
+
+    - name: Validate WAN discovery response
+      ansible.builtin.assert:
+        that:
+          - pc2_wan_interface_monitor is defined
+          - pc2_wan_interface_monitor is mapping
+          - not (pc2_wan_interface_monitor.failed | default(false))
+          - pc2_wan_interface_monitor.meta is defined
+        fail_msg: >-
+          WAN discovery returned an unsuccessful or unexpected
+          response for {{ wan_interface }} on {{ inventory_hostname }}.
+        success_msg: >-
+          WAN discovery response received from {{ inventory_hostname }}.
+
+    - name: Inspect WAN discovery response structure
+      ansible.builtin.debug:
+         msg:
+           - "Response type: {{ pc2_wan_interface_monitor | type_debug }}"
+           - "Response keys: {{ pc2_wan_interface_monitor.keys() | list }}"
+           - "Failed: {{ pc2_wan_interface_monitor.failed | default(false) }}"
+
+    - name: Inspect WAN monitor metadata structure
+      ansible.builtin.debug:
+        msg:
+          - "Meta type: {{ pc2_wan_interface_monitor.meta | type_debug }}"
+          - "Meta keys: {{ pc2_wan_interface_monitor.meta.keys() | list if               pc2_wan_interface_monitor.meta is mapping else 'NOT A DICTIONARY' }}"
+          - "Results type: {{ pc2_wan_interface_monitor.meta.get('results', None) | type_debug if pc2_wan_interface_monitor.meta is mapping else 'UNKNOWN' }}"
+
+
+    - name: Inspect FortiGate WAN interface results
+      ansible.builtin.debug:
+        msg:
+          - "Results keys: {{ pc2_wan_interface_monitor.meta.results.keys() | list }}"
+          - "Results data: {{ pc2_wan_interface_monitor.meta.results }}"
+      
+    - name: Normalize discovered WAN address
+      ansible.builtin.set_fact:
+        pc2_discovered_wan_ip: >-
+            {{
+              pc2_wan_interface_monitor.meta.results[wan_interface].ip
+            }}
+    
+
+    - name: Validate discovered WAN IPv4 address
+      ansible.builtin.assert:
+         that:
+           - pc2_discovered_wan_ip is defined
+           - (pc2_discovered_wan_ip | ansible.utils.ipv4) != false
+           - pc2_discovered_wan_ip != '0.0.0.0'
+           - pc2_wan_interface_monitor.meta.results[wan_interface].link | bool
+         fail_msg: >-
+            {{ inventory_hostname }} has no usable WAN IPv4
+            address or {{ wan_interface }} is down.
+         success_msg: >-
+            WAN discovery successful for {{ inventory_hostname }}.
+
+      tags:
+          - always
+          - discovery
+
+
+    - name: Show discovered WAN address
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}
+          {{ wan_interface }}
+          DHCP address =
+          {{ pc2_discovered_wan_ip }}
+
+      tags:
+        - always
+        - discovery
+
+
+
+- name: Configure FortiGate hub-and-spoke VPN
+  hosts: fortigates
+  gather_facts: false
+
+  serial: 1
+
+  max_fail_percentage: 0
+
+  vars_files:
+    - ../vars/lab/pc2.yml
+
+  roles:
+
+    - role: fortigate_hub_spoke_vpn
+
+      when:
+        - pc2_enable_vpn
+
+      tags:
+        - vpn

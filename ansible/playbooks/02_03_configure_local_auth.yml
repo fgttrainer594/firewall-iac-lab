@@ -1,0 +1,21 @@
+---
+- name: Configure FortiGate local authentication
+  hosts: "{{ fortigate_target | default('fgt1') }}"
+  gather_facts: false
+  serial: 1
+  vars_files:
+    - ../vars/lab/pc2.yml
+  roles:
+    - role: fortigate_local_auth
+      when: pc2_enable_local_auth
+
+- name: Configure PAN-OS local administrator
+  hosts: "{{ panos_target | default('pa6') }}"
+  gather_facts: false
+  connection: local
+  serial: 1
+  vars_files:
+    - ../vars/lab/pc2.yml
+  roles:
+    - role: panos_local_auth
+      when: pc2_enable_local_auth

@@ -1,0 +1,79 @@
+---
+- name: Create PAN-OS syslog profile
+  paloaltonetworks.panos.panos_syslog_profile:
+    provider: "{{ panos_deploy_provider }}"
+    name: IAC-PC2-SYSLOG
+    vsys: "{{ panos_vsys }}"
+    state: present
+  notify: Commit PAN-OS PC2 logging
+  no_log: true
+
+- name: Add Linux13 to PAN-OS syslog profile
+  paloaltonetworks.panos.panos_syslog_server:
+    provider: "{{ panos_deploy_provider }}"
+    syslog_profile: IAC-PC2-SYSLOG
+    name: LINUX13
+    server: "{{ pc2_syslog_server_ip }}"
+    syslog_port: "{{ pc2_syslog_server_port }}"
+    transport: UDP
+    format: IETF
+    facility: LOG_LOCAL7
+    vsys: "{{ panos_vsys }}"
+    state: present
+  notify: Commit PAN-OS PC2 logging
+  no_log: true
+
+- name: Create PAN-OS log forwarding profile
+  paloaltonetworks.panos.panos_log_forwarding_profile:
+    provider: "{{ panos_deploy_provider }}"
+    name: IAC-PC2-LOG-FWD
+    description: "Managed by Iac"
+    vsys: "{{ panos_vsys }}"
+    state: present
+  notify: Commit PAN-OS PC2 logging
+  no_log: true
+
+- name: Ensure PAN-OS traffic log forwarding match list is configured
+  paloaltonetworks.panos.panos_log_forwarding_profile_match_list:
+    provider: "{{ panos_deploy_provider }}"
+    log_forwarding_profile: IAC-PC2-LOG-FWD
+    name: IAC-PC2-TRAFFIC-ALL
+
+    log_type: "traffic"
+    filter: "All Logs"
+
+    syslog_profiles:
+      - IAC-PC2-SYSLOG
+
+    vsys: "{{ panos_vsys }}"
+    state: present
+
+  notify: Commit PAN-OS PC2 logging
+  no_log: true
+
+- name: Attach log forwarding profile to the LAN-out rule
+  paloaltonetworks.panos.panos_security_rule:
+    provider: "{{ panos_deploy_provider }}"
+    rule_name: "IAC-POD{{ pod_id }}-LAN-OUT"
+    source_zone:
+      - LAN
+    destination_zone:
+      - TRANSIT
+    source_ip:
+      - "{{ lan_network }}"
+    destination_ip:
+      - any
+    application:
+      - any
+    service:
+      - application-default
+    action: allow
+    log_end: true
+    log_setting: IAC-PC2-LOG-FWD
+    vsys: "{{ panos_vsys }}"
+    state: present
+  notify: Commit PAN-OS PC2 logging
+  no_log: true
+
+- name: Flush PAN-OS logging commit before verification
+  ansible.builtin.meta: flush_handlers

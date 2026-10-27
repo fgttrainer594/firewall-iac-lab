@@ -1,0 +1,162 @@
+---
+- name: Create ping-only interface management profile
+  paloaltonetworks.panos.panos_management_profile:
+    provider: "{{ panos_deploy_provider }}"
+    name: "{{ pc2_fgt1_pa6_pan_management_profile }}"
+    ping: true
+    state: present
+  notify: Commit PA6 VPN changes
+  no_log: true
+
+- name: Create protected PA6 loopback
+  paloaltonetworks.panos.panos_loopback_interface:
+    provider: "{{ panos_deploy_provider }}"
+    if_name: "{{ pc2_fgt1_pa6_pan_loopback_name }}"
+    ip:
+      - "{{ pc2_fgt1_pa6_pan_loopback_ip }}"
+    management_profile: "{{ pc2_fgt1_pa6_pan_management_profile }}"
+    zone_name: "{{ pc2_fgt1_pa6_pan_loopback_zone }}"
+    vr_name: "{{ pc2_fgt1_pa6_pan_virtual_router }}"
+    vsys: "{{ panos_vsys }}"
+    state: present
+  notify: Commit PA6 VPN changes
+  no_log: true
+
+- name: Create PA6 VPN tunnel interface
+  paloaltonetworks.panos.panos_tunnel:
+    provider: "{{ panos_deploy_provider }}"
+    if_name: "{{ pc2_fgt1_pa6_pan_tunnel_interface }}"
+    zone_name: "{{ pc2_fgt1_pa6_pan_vpn_zone }}"
+    vr_name: "{{ pc2_fgt1_pa6_pan_virtual_router }}"
+    vsys: "{{ panos_vsys }}"
+    comment: "FGT1 PA6 IPsec VPN"
+    state: present
+  notify: Commit PA6 VPN changes
+  no_log: true
+
+- name: Create PA6 IKE crypto profile
+  paloaltonetworks.panos.panos_ike_crypto_profile:
+    provider: "{{ panos_deploy_provider }}"
+    name: "{{ pc2_fgt1_pa6_pan_ike_crypto_name }}"
+    dh_group: "{{ pc2_fgt1_pa6_pan_ike_dh_group }}"
+    authentication: "{{ pc2_fgt1_pa6_pan_ike_authentication }}"
+    encryption: "{{ pc2_fgt1_pa6_pan_ike_encryption }}"
+    lifetime_hours: 8
+    state: present
+  notify: Commit PA6 VPN changes
+  no_log: true
+
+- name: Create PA6 IKE gateway
+  paloaltonetworks.panos.panos_ike_gateway:
+    provider: "{{ panos_deploy_provider }}"
+    name: "{{ pc2_fgt1_pa6_pan_ike_gateway_name }}"
+    version: ikev2
+    interface: "{{ pc2_fgt1_pa6_pan_underlay_interface }}"
+    local_ip_address: "{{ pc2_fgt1_pa6_pan_underlay_ip_cidr }}"
+    local_ip_address_type: ip
+    peer_ip_type: ip
+    peer_ip_value: "{{ pc2_fgt1_pa6_fgt_underlay_ip }}"
+    pre_shared_key: "{{ vault_pc2_fgt1_pa6_psk }}"
+    ikev2_crypto_profile: "{{ pc2_fgt1_pa6_pan_ike_crypto_name }}"
+    enable_passive_mode: false
+    enable_liveness_check: true
+    liveness_check_interval: 5
+    enable_nat_traversal: false
+    state: present
+  notify: Commit PA6 VPN changes
+  no_log: true
+
+- name: Create PA6 IPsec crypto profile
+  paloaltonetworks.panos.panos_ipsec_profile:
+    provider: "{{ panos_deploy_provider }}"
+    name: "{{ pc2_fgt1_pa6_pan_ipsec_crypto_name }}"
+    esp_encryption: "{{ pc2_fgt1_pa6_pan_ipsec_encryption }}"
+    esp_authentication: "{{ pc2_fgt1_pa6_pan_ipsec_authentication }}"
+    dh_group: "{{ pc2_fgt1_pa6_pan_ipsec_dh_group }}"
+    lifetime_hours: 1
+    state: present
+  notify: Commit PA6 VPN changes
+  no_log: true
+
+- name: Create PA6 IPsec tunnel
+  paloaltonetworks.panos.panos_ipsec_tunnel:
+    provider: "{{ panos_deploy_provider }}"
+    name: "{{ pc2_fgt1_pa6_pan_ipsec_tunnel_name }}"
+    tunnel_interface: "{{ pc2_fgt1_pa6_pan_tunnel_interface }}"
+    ak_ike_gateway: "{{ pc2_fgt1_pa6_pan_ike_gateway_name }}"
+    ak_ipsec_crypto_profile: "{{ pc2_fgt1_pa6_pan_ipsec_crypto_name }}"
+    anti_replay: true
+    state: present
+  notify: Commit PA6 VPN changes
+  no_log: true
+
+- name: Create PA6 Proxy ID
+  paloaltonetworks.panos.panos_ipsec_ipv4_proxyid:
+    provider: "{{ panos_deploy_provider }}"
+    name: "{{ pc2_fgt1_pa6_pan_proxy_id_name }}"
+    tunnel_name: "{{ pc2_fgt1_pa6_pan_ipsec_tunnel_name }}"
+    local: "{{ pc2_fgt1_pa6_pan_loopback_ip }}"
+    remote: "{{ pc2_fgt1_pa6_fgt_loopback_ip }}"
+    any_protocol: true
+    state: present
+  notify: Commit PA6 VPN changes
+  no_log: true
+
+- name: Route FGT1 protected loopback through PA6 tunnel
+  paloaltonetworks.panos.panos_static_route:
+    provider: "{{ panos_deploy_provider }}"
+    name: "{{ pc2_fgt1_pa6_pan_route_name }}"
+    destination: "{{ pc2_fgt1_pa6_fgt_loopback_ip }}"
+    interface: "{{ pc2_fgt1_pa6_pan_tunnel_interface }}"
+    nexthop_type: none
+    virtual_router: "{{ pc2_fgt1_pa6_pan_virtual_router }}"
+    state: present
+  notify: Commit PA6 VPN changes
+  no_log: true
+
+- name: Allow PA6 protected loopback toward FGT1
+  paloaltonetworks.panos.panos_security_rule:
+    provider: "{{ panos_deploy_provider }}"
+    rule_name: PC2-PA6-TO-FGT1
+    source_zone:
+      - "{{ pc2_fgt1_pa6_pan_loopback_zone }}"
+    destination_zone:
+      - "{{ pc2_fgt1_pa6_pan_vpn_zone }}"
+    source_ip:
+      - "{{ pc2_fgt1_pa6_pan_loopback_ip }}"
+    destination_ip:
+      - "{{ pc2_fgt1_pa6_fgt_loopback_ip }}"
+    application:
+      - ping
+    service:
+      - application-default
+    action: allow
+    log_end: true
+    state: present
+  notify: Commit PA6 VPN changes
+  no_log: true
+
+- name: Allow FGT1 protected loopback toward PA6
+  paloaltonetworks.panos.panos_security_rule:
+    provider: "{{ panos_deploy_provider }}"
+    rule_name: PC2-FGT1-TO-PA6
+    source_zone:
+      - "{{ pc2_fgt1_pa6_pan_vpn_zone }}"
+    destination_zone:
+      - "{{ pc2_fgt1_pa6_pan_loopback_zone }}"
+    source_ip:
+      - "{{ pc2_fgt1_pa6_fgt_loopback_ip }}"
+    destination_ip:
+      - "{{ pc2_fgt1_pa6_pan_loopback_ip }}"
+    application:
+      - ping
+    service:
+      - application-default
+    action: allow
+    log_end: true
+    state: present
+  notify: Commit PA6 VPN changes
+  no_log: true
+
+- name: Commit PA6 configuration before FGT1 is configured
+  ansible.builtin.meta: flush_handlers

@@ -1,0 +1,36 @@
+---
+- name: Validate reference LDAP bind password secret
+  ansible.builtin.assert:
+    that:
+      - vault_pc2_reference_ldap_bind_password is defined
+      - vault_pc2_reference_ldap_bind_password | length > 0
+  no_log: true
+
+- name: Create FortiGate LDAP reference object
+  fortinet.fortios.fortios_user_ldap:
+    vdom: "{{ fortigate_vdom }}"
+    state: present
+    access_token: "{{ fortigate_deploy_access_token }}"
+    user_ldap:
+      name: "{{ pc2_ldap_profile_name }}"
+      server: "{{ pc2_ldap_server }}"
+      port: "{{ pc2_ldap_port }}"
+      secure: ldaps
+      type: regular
+      username: "{{ pc2_ldap_bind_dn }}"
+      password: "{{ vault_pc2_reference_ldap_bind_password }}"
+      dn: "{{ pc2_ldap_base_dn }}"
+      cnid: "{{ pc2_ldap_user_attribute }}"
+      ssl_min_proto_version: TLSv1-2
+  no_log: true
+
+- name: Read back FortiGate LDAP reference object
+  fortinet.fortios.fortios_configuration_fact:
+    vdom: "{{ fortigate_vdom }}"
+    access_token: "{{ fortigate_deploy_access_token }}"
+    selector: user_ldap
+    params:
+      name: "{{ pc2_ldap_profile_name }}"
+  register: pc2_fgt_ldap_readback
+  changed_when: false
+  no_log: true

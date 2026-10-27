@@ -1,0 +1,14 @@
+---
+- name: Explain HA deployment prerequisites
+  ansible.builtin.debug:
+    msg:
+      - "FortiGate module: fortinet.fortios.fortios_system_ha"
+      - "PAN-OS module: paloaltonetworks.panos.panos_ha"
+      - "Actual deployment needs second firewall instances and HA/heartbeat links."
+      - "Do not treat one firewall per pod as an HA lab."
+
+- name: Refuse accidental HA write mode
+  ansible.builtin.assert:
+    that:
+      - not pc2_enable_ha_changes
+    fail_msg: "Extend the HA topology and inventory before enabling HA writes."

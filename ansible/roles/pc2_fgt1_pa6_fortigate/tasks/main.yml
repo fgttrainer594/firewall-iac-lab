@@ -1,0 +1,144 @@
+---
+- name: Create FGT1 protected loopback
+  fortinet.fortios.fortios_system_interface:
+    vdom: "{{ fortigate_vdom }}"
+    state: present
+    access_token: "{{ fortigate_deploy_access_token }}"
+    system_interface:
+      name: "{{ pc2_fgt1_pa6_fgt_loopback_name }}"
+      type: loopback
+      ip: "{{ pc2_fgt1_pa6_fgt_loopback_ip }}"
+      allowaccess:
+        - ping
+      role: lan
+      status: up
+  no_log: true
+
+- name: Create FGT1 protected address object
+  fortinet.fortios.fortios_firewall_address:
+    vdom: "{{ fortigate_vdom }}"
+    state: present
+    access_token: "{{ fortigate_deploy_access_token }}"
+    firewall_address:
+      name: "{{ pc2_fgt1_pa6_fgt_local_object }}"
+      subnet: >-
+        {{ pc2_fgt1_pa6_fgt_loopback_ip.split('/')[0] }}
+        255.255.255.255
+  no_log: true
+
+- name: Create PA6 protected address object
+  fortinet.fortios.fortios_firewall_address:
+    vdom: "{{ fortigate_vdom }}"
+    state: present
+    access_token: "{{ fortigate_deploy_access_token }}"
+    firewall_address:
+      name: "{{ pc2_fgt1_pa6_fgt_remote_object }}"
+      subnet: >-
+        {{ pc2_fgt1_pa6_pan_loopback_ip.split('/')[0] }}
+        255.255.255.255
+  no_log: true
+
+- name: Configure FGT1 IKE Phase 1
+  fortinet.fortios.fortios_vpn_ipsec_phase1_interface:
+    vdom: "{{ fortigate_vdom }}"
+    state: present
+    access_token: "{{ fortigate_deploy_access_token }}"
+    vpn_ipsec_phase1_interface:
+      name: "{{ pc2_fgt1_pa6_fgt_vpn_name }}"
+      interface: "{{ pc2_fgt1_pa6_fgt_underlay_interface }}"
+      local_gw: "{{ pc2_fgt1_pa6_fgt_underlay_ip }}"
+      remote_gw: "{{ pc2_fgt1_pa6_pan_underlay_ip }}"
+      type: static
+      peertype: any
+      authmethod: psk
+      ike_version: "{{ pc2_fgt1_pa6_ike_version }}"
+      proposal: "{{ pc2_fgt1_pa6_fgt_phase1_proposal }}"
+      dhgrp: "{{ pc2_fgt1_pa6_fgt_phase1_dhgrp }}"
+      psksecret: "{{ vault_pc2_fgt1_pa6_psk }}"
+      dpd: on-idle
+      nattraversal: disable
+      net_device: enable
+  no_log: true
+
+- name: Configure FGT1 IPsec Phase 2
+  fortinet.fortios.fortios_vpn_ipsec_phase2_interface:
+    vdom: "{{ fortigate_vdom }}"
+    state: present
+    access_token: "{{ fortigate_deploy_access_token }}"
+    vpn_ipsec_phase2_interface:
+      name: "{{ pc2_fgt1_pa6_fgt_phase2_name }}"
+      phase1name: "{{ pc2_fgt1_pa6_fgt_vpn_name }}"
+      proposal: "{{ pc2_fgt1_pa6_fgt_phase2_proposal }}"
+      pfs: enable
+      dhgrp: "{{ pc2_fgt1_pa6_fgt_phase2_dhgrp }}"
+      src_addr_type: subnet
+      src_subnet: >-
+        {{ pc2_fgt1_pa6_fgt_loopback_ip.split('/')[0] }}
+        255.255.255.255
+      dst_addr_type: subnet
+      dst_subnet: >-
+        {{ pc2_fgt1_pa6_pan_loopback_ip.split('/')[0] }}
+        255.255.255.255
+      auto_negotiate: enable
+  no_log: true
+
+- name: Route PA6 protected loopback through FGT1 VPN
+  fortinet.fortios.fortios_router_static:
+    vdom: "{{ fortigate_vdom }}"
+    state: present
+    access_token: "{{ fortigate_deploy_access_token }}"
+    router_static:
+      seq_num: "{{ pc2_fgt1_pa6_fgt_route_seq }}"
+      dst: >-
+        {{ pc2_fgt1_pa6_pan_loopback_ip.split('/')[0] }}
+        255.255.255.255
+      device: "{{ pc2_fgt1_pa6_fgt_vpn_name }}"
+  no_log: true
+
+- name: Create FGT1 protected to VPN policy
+  fortinet.fortios.fortios_firewall_policy:
+    vdom: "{{ fortigate_vdom }}"
+    state: present
+    access_token: "{{ fortigate_deploy_access_token }}"
+    firewall_policy:
+      policyid: "{{ pc2_fgt1_pa6_fgt_policy_out_id }}"
+      name: PC2-FGT1-TO-PA6
+      srcintf:
+        - name: "{{ pc2_fgt1_pa6_fgt_loopback_name }}"
+      dstintf:
+        - name: "{{ pc2_fgt1_pa6_fgt_vpn_name }}"
+      srcaddr:
+        - name: "{{ pc2_fgt1_pa6_fgt_local_object }}"
+      dstaddr:
+        - name: "{{ pc2_fgt1_pa6_fgt_remote_object }}"
+      action: accept
+      schedule: always
+      service:
+        - name: ALL
+      nat: disable
+      logtraffic: all
+  no_log: true
+
+- name: Create FGT1 VPN to protected policy
+  fortinet.fortios.fortios_firewall_policy:
+    vdom: "{{ fortigate_vdom }}"
+    state: present
+    access_token: "{{ fortigate_deploy_access_token }}"
+    firewall_policy:
+      policyid: "{{ pc2_fgt1_pa6_fgt_policy_in_id }}"
+      name: PC2-PA6-TO-FGT1
+      srcintf:
+        - name: "{{ pc2_fgt1_pa6_fgt_vpn_name }}"
+      dstintf:
+        - name: "{{ pc2_fgt1_pa6_fgt_loopback_name }}"
+      srcaddr:
+        - name: "{{ pc2_fgt1_pa6_fgt_remote_object }}"
+      dstaddr:
+        - name: "{{ pc2_fgt1_pa6_fgt_local_object }}"
+      action: accept
+      schedule: always
+      service:
+        - name: ALL
+      nat: disable
+      logtraffic: all
+  no_log: true
