@@ -1,76 +1,60 @@
-# ============================================================
-# FIREWALL IaC LAB - Git Ignore Rules
-# ============================================================
 
 # ------------------------------------------------------------
-# Secrets and credentials
-# ------------------------------------------------------------
+# ============================================================
+*~
+# Ansible
+*.auto.tfvars
+- .auto.tfvars
+*.auto.tfvars.json
+- .auto.tfvars.json
+# Common SSH private key names
+crash.*.log
+crash.log
+.DS_Store
+# Editors / Operating Systems
 .env
 .env.*
 !.env.example
-
-secrets/
-vault-password*
-*.secret
-
-# Private keys / certificates containing private key material
-*.key
-*.p12
-*.pfx
-
-# Common SSH private key names
-id_rsa
+# FIREWALL IaC LAB - Git Ignore Rules
+# Generated operational reports
+# Generated temporary data
+.idea/
 id_ed25519
-
-# ------------------------------------------------------------
-# Ansible
-# ------------------------------------------------------------
-*.retry
-
-# ------------------------------------------------------------
-# Terraform
-# ------------------------------------------------------------
-**/.terraform/*
-*.tfstate
-*.tfstate.*
-*.tfplan
-crash.log
-crash.*.log
-
+id_rsa
+*.key
 # Local secret Terraform variable files
-*.secret.tfvars
-secrets.auto.tfvars
-
-# ------------------------------------------------------------
-# Python
-# ------------------------------------------------------------
+*.log
+# Logs
+*.p12
+pc4_env.sh
+*.pfx
+# Private keys / certificates containing private key material
 __pycache__/
 *.py[cod]
+# Python
+reports/generated
+*.retry
+scripts/pc3_env.sh
+*.secret
+secrets/
+# Secrets and credentials
+secrets.auto.tfvars
+*.secret.tfvars
+*.swo
+*.swp
+temp/
+**/.terraform/*
+.terraform/
+# Terraform
+terraform/pc3/scripts/pc3_env.sh
+terraform.tfstate
+terraform.tfstate.*
+*.tfplan
+*.tfstate
+*.tfstate.*
+tmp/
+vault-pass
+vault-password
+vault-password*
 .venv/
 venv/
-
-# ------------------------------------------------------------
-# Logs
-# ------------------------------------------------------------
-*.log
-
-# ------------------------------------------------------------
-# Editors / Operating Systems
-# ------------------------------------------------------------
-*~
-*.swp
-*.swo
-.DS_Store
-.idea/
-
-# ------------------------------------------------------------
-# Generated temporary data
-# ------------------------------------------------------------
-tmp/
-temp/
-
-# ------------------------------------------------------------
-# Generated operational reports
-# ------------------------------------------------------------
-reports/generated
-

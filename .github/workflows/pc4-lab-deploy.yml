@@ -1,0 +1,79 @@
+name: pc4-lab-deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment:
+        description: Select the approved lab deployment
+        required: true
+        type: choice
+        options:
+          - fgt1-pa6-ipsec
+          - fgt-hub-spoke
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pc4-firewall-lab
+  queue: max
+
+jobs:
+  deploy:
+    name: deploy-${{ inputs.deployment }}
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - firewall-iac
+
+    environment: lab
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pc4/requirements-ci.txt
+
+      - name: Install Python runtime
+        run: python -m pip install -r pc4/requirements-ci.txt
+
+      - name: Install Ansible collections
+        run: ansible-galaxy collection install -r pc4/requirements-ansible.yml
+
+      - name: Create temporary Vault password file
+        shell: bash
+        env:
+          PC4_VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "${PC4_VAULT_PASSWORD}"
+          printf '%s' "${PC4_VAULT_PASSWORD}" > "${RUNNER_TEMP}/pc4-vault-pass"
+
+      - name: Validate inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          ansible-inventory \
+            --graph \
+            --vault-id "lab@${RUNNER_TEMP}/pc4-vault-pass"
+
+      - name: Run approved Ansible deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash pc4/scripts/pc4_deploy_ansible.sh \
+            "${{ inputs.deployment }}" \
+            "${RUNNER_TEMP}/pc4-vault-pass"
+
+      - name: Remove temporary Vault password file
+        if: always()
+        shell: bash
+        run: rm -f "${RUNNER_TEMP}/pc4-vault-pass"
