@@ -31,7 +31,7 @@
           name: "{{ lab_address_name }}"
       register: fgt_precheck
       failed_when: >-
-          (fgt_precheck.meta.http_status| default(0) | int)
+          (fgt_precheck.meta.http_status | default(0) | int) not in [200, 404]
           not in [200,404]
       changed_when: false
       no_log: true
@@ -73,7 +73,7 @@
       no_log: true
       when: not ansible_check_mode
 
-     
+
     - name: Verify FortiGate object exists with expected identity and IP
       ansible.builtin.assert:
         that:

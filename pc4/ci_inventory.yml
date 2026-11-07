@@ -1,0 +1,36 @@
+---
+all:
+  children:
+    firewalls:
+      children:
+        fortigates:
+          hosts:
+            fgt1:
+              ansible_host: 192.0.2.101
+              fortigate_vdom: root
+              fortigate_deploy_access_token: ci-placeholder
+              wan_interface: port2
+              transit_interface: port3
+              pod_id: 1
+            fgt2:
+              ansible_host: 192.0.2.102
+              fortigate_vdom: root
+              fortigate_deploy_access_token: ci-placeholder
+              wan_interface: port2
+              transit_interface: port3
+              pod_id: 2
+        palos:
+          hosts:
+            pa6:
+              ansible_host: 192.0.2.201
+              panos_vsys: vsys1
+              panos_deploy_admin: ci
+              pod_id: 1
+              panos_deploy_provider:
+                ip_address: 192.0.2.201
+                api_key: ci-placeholder
+    servers:
+      hosts:
+        linux13:
+          ansible_host: 192.0.2.30
+          ansible_user: ci

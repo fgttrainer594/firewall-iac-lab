@@ -1,0 +1,11 @@
+.terraform/
+terraform.tfstate
+terraform.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+.env
+*.auto.tfvars
+*.auto.tfvars.json
+
+scripts/pc3_env.sh

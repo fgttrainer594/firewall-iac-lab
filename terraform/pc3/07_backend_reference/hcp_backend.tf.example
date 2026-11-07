@@ -1,0 +1,9 @@
+terraform {
+  cloud {
+    organization = "REPLACE_ORGANIZATION"
+
+    workspaces {
+      name = "pc3-firewall-lab"
+    }
+  }
+}

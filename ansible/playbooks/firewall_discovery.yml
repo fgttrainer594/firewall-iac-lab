@@ -21,7 +21,7 @@
     - name: Show fgt runtime output
       ansible.builtin.debug:
         var: fgt_system_status
-        
+
     - name: Validate FortiGate runtime result
       ansible.builtin.assert:
         that:
@@ -219,21 +219,21 @@
       ansible.builtin.set_fact:
         discovered_firewalls: >-
           {{
-            (discovered_firewalls | default([])) 
+            (discovered_firewalls | default([]))
             + [item]
           }}
-      loop: "{{groups['firewalls']}}"
+      loop: "{{ groups['firewalls'] }}"
       when:
         - hostvars[item].normalized_device is defined
-        
+
     - name: Verify atleast one firewall produced normalized data
       ansible.builtin.assert:
         that:
           - discovered_firewalls | default([]) | length > 0
         fail_msg: >-
           {{ item }} did not produce normalized discovery data.
-      loop: "{{ groups['firewalls'] }}"  
-        
+      loop: "{{ groups['firewalls'] }}"
+
     - name: Write normalized discovery report
       ansible.builtin.copy:
         dest: "{{ report_file }}"
@@ -245,7 +245,17 @@
           |---|---|---|---|---|---|---|---|
           {% for host in discovered_firewalls %}
           {% set d = hostvars[host].normalized_device %}
-          | {{ d.inventory_name }} | {{ d.vendor }} | {{ d.management_ip }} | {{ d.actual_hostname }} | {{ d.model }} | {{ d.serial }} | {{ d.version }} | {{ d.hostname_match }} |
+          {{
+            '| ' ~ d.inventory_name ~
+            ' | ' ~ d.vendor ~
+            ' | ' ~ d.management_ip ~
+            ' | ' ~ d.actual_hostname ~
+            ' | ' ~ d.model ~
+            ' | ' ~ d.serial ~
+            ' | ' ~ d.version ~
+            ' | ' ~ d.hostname_match ~
+            ' |'
+          }}
           {% endfor %}
 
           ## Notes
