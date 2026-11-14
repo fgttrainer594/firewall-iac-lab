@@ -38,7 +38,7 @@
 
 - name: Flush pending rsyslog restart handlers
   ansible.builtin.meta: flush_handlers
-  
+
 - name: Verify UDP 514 is listening
   ansible.builtin.shell: "ss -lun | grep -E '[:.]{{ pc2_rsyslog_port }}[[:space:]]'"
   register: pc2_rsyslog_listener

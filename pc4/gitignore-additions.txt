@@ -1,0 +1,13 @@
+.terraform/
+terraform.tfstate
+terraform.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+.env
+*.auto.tfvars
+*.auto.tfvars.json
+terraform/pc3/scripts/pc3_env.sh
+pc4_env.sh
+vault-pass
+vault-password
